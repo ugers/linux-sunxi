@@ -347,10 +347,10 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
+CFLAGS_MODULE   = -mcpu=cortex-a8 -mtune=cortex-a8 -mfpu=vfpv3 -ftree-vectorize -mfloat-abi=hard -ffast-math -fsingle-precision-constant --param l2-cache-size=512  -funswitch-loops
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	=
+CFLAGS_KERNEL	= -mcpu=cortex-a8 -mtune=cortex-a8 -mfpu=vfpv3 -ftree-vectorize -mfloat-abi=hard -ffast-math -fsingle-precision-constant --param l2-cache-size=512  -funswitch-loops
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
