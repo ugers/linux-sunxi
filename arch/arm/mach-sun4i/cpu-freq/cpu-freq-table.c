@@ -75,11 +75,11 @@ struct cpufreq_frequency_table sun4i_freq_tbl[] = {
     { .frequency = 1152000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
     { .frequency = 1200000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
     { .frequency = 1248000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
-    { .frequency = 1296000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
+    /*{ .frequency = 1296000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
     { .frequency = 1344000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
     { .frequency = 1392000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
     { .frequency = 1440000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
-    { .frequency = 1488000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
+    { .frequency = 1488000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },*/
     #endif
 
     /* table end */
