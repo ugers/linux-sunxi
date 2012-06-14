@@ -16,28 +16,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
-#ifndef __RTL8192C_LED_H_
-#define __RTL8192C_LED_H_
+ ******************************************************************************/
+#ifndef __INC_HAL8192CU_FW_IMG_WOWLAN_H
+#define __INC_HAL8192CU_FW_IMG_WOWLAN_H
 
-#include <drv_conf.h>
-#include <osdep_service.h>
-#include <drv_types.h>
+/*Created on  2011/11/ 8, 14:15*/
 
 
-//================================================================================
-// Interface to manipulate LED objects.
-//================================================================================
-#ifdef CONFIG_USB_HCI
-void rtl8192cu_InitSwLeds(_adapter *padapter);
-void rtl8192cu_DeInitSwLeds(_adapter *padapter);
-#endif
-#ifdef CONFIG_PCI_HCI
-void rtl8192ce_gen_RefreshLedState(PADAPTER Adapter);
-void rtl8192ce_InitSwLeds(_adapter *padapter);
-void rtl8192ce_DeInitSwLeds(_adapter *padapter);
-#endif
+#define TSMCWWImgArrayLength 13458
+extern u8 Rtl8192CUFwTSMCWWImgArray[TSMCWWImgArrayLength];
+#define UMCACutWWImgArrayLength 13458
+extern u8 Rtl8192CUFwUMCACutWWImgArray[UMCACutWWImgArrayLength];
+#define UMCBCutWWImgArrayLength 13446
+extern u8 Rtl8192CUFwUMCBCutWWImgArray[UMCBCutWWImgArrayLength];
 
-#endif
+#endif //__INC_HAL8192CU_FW_IMG_WOWLAN_H
 

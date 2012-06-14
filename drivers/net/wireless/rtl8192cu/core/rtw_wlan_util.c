@@ -600,6 +600,42 @@ void flush_all_cam_entry(_adapter *padapter)
 	_rtw_memset((u8 *)(pmlmeinfo->FW_sta_info), 0, sizeof(pmlmeinfo->FW_sta_info));
 }
 
+#ifdef CONFIG_WFD
+int WFD_info_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs	pIE)
+{
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	struct mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct wifidirect_info	*pwdinfo;	
+	u8	wfd_ie[ 128 ] = { 0x00 };
+	u32	wfd_ielen = 0;
+
+
+	pwdinfo = &padapter->wdinfo;
+	if ( rtw_get_wfd_ie( ( u8* ) pIE, pIE->Length, wfd_ie, &wfd_ielen ) )
+	{
+		u8	attr_content[ 10 ] = { 0x00 };
+		u32	attr_contentlen = 0;
+			
+		printk( "[%s] Found WFD IE\n", __FUNCTION__ );
+		rtw_get_wfd_attr_content( wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
+		if ( attr_contentlen )
+		{
+			pwdinfo->wfd_info.peer_rtsp_ctrlport = RTW_GET_BE16( attr_content + 2 );
+			DBG_8192C( "[%s] Peer PORT NUM = %d\n", __FUNCTION__, pwdinfo->wfd_info.peer_rtsp_ctrlport );
+			return( _TRUE );
+		}		
+	}
+	else
+	{
+		printk( "[%s] NO WFD IE\n", __FUNCTION__ );
+
+	}
+	return( _FAIL );
+}
+#endif
+
 int WMM_param_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs	pIE)
 {
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
@@ -1045,6 +1081,11 @@ void update_beacon_info(_adapter *padapter, u8 *pframe, uint pkt_len, struct sta
 	unsigned int len;
 	PNDIS_802_11_VARIABLE_IEs	pIE;
 		
+#ifdef CONFIG_TDLS
+	struct tdls_info *ptdlsinfo = &padapter->tdlsinfo;
+	u8 tdls_prohibited[] = { 0x00, 0x00, 0x00, 0x00, 0x10 }; //bit(38): TDLS_prohibited
+#endif
+		
 	len = pkt_len - (_BEACON_IE_OFFSET_ + WLAN_HDR_A3_LEN);
 
 	for (i = 0; i < len;)
@@ -1073,6 +1114,12 @@ void update_beacon_info(_adapter *padapter, u8 *pframe, uint pkt_len, struct sta
 				VCS_update(padapter, psta);
 				break;
 				
+#ifdef CONFIG_TDLS
+			case _EXT_CAP_IE_:
+				if( _rtw_memcmp(pIE->data, tdls_prohibited, 5) == _TRUE )
+					ptdlsinfo->ap_prohibited = _TRUE;
+				break;
+#endif
 			default:
 				break;
 		}
@@ -1671,7 +1718,7 @@ void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 	u8* pIE;
 	u32 *pbuf;
 		
-	pIE = pframe + sizeof(struct ieee80211_hdr_3addr);
+	pIE = pframe + sizeof(struct rtw_ieee80211_hdr_3addr);
 	pbuf = (u32*)pIE;
 
 	pmlmeext->TSFValue = le32_to_cpu(*(pbuf+1));
@@ -1697,7 +1744,7 @@ unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame)
 	unsigned short				ATIMWindow;
 	unsigned char					*pframe;
 	struct tx_desc 				*ptxdesc;
-	struct ieee80211_hdr 	*pwlanhdr;
+	struct rtw_ieee80211_hdr 	*pwlanhdr;
 	unsigned short				*fctrl;
 	unsigned int					rate_len, len = 0;
 	struct xmit_priv			*pxmitpriv = &(padapter->xmitpriv);
@@ -1710,7 +1757,7 @@ unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame)
 	
 	pframe = beacon_frame + TXDESC_SIZE;
 	
-	pwlanhdr = (struct ieee80211_hdr *)pframe;	
+	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;	
 	
 	fctrl = &(pwlanhdr->frame_ctl);
 	*(fctrl) = 0;
@@ -1721,8 +1768,8 @@ unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame)
 	
 	SetFrameSubType(pframe, WIFI_BEACON);
 	
-	pframe += sizeof(struct ieee80211_hdr_3addr);	
-	len = sizeof(struct ieee80211_hdr_3addr);
+	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);	
+	len = sizeof(struct rtw_ieee80211_hdr_3addr);
 
 	//timestamp will be inserted by hardware
 	pframe += 8;

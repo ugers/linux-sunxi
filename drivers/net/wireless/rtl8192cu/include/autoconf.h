@@ -32,6 +32,12 @@
 #define PLATFORM_LINUX	1
 
 
+#define CONFIG_IOCTL_CFG80211 1
+#ifdef CONFIG_IOCTL_CFG80211
+	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
+	//#define CONFIG_DEBUG_CFG80211 1
+#endif
+
 /*
  * Internal  General Config
  */
@@ -40,6 +46,10 @@
 
 #define CONFIG_EMBEDDED_FWIMG	1
 //#define CONFIG_FILE_FWIMG
+
+#ifdef CONFIG_WAKE_ON_WLAN
+#define CONFIG_WOWLAN 1
+#endif //CONFIG_WAKE_ON_WLAN
 
 #define CONFIG_R871X_TEST	1
 
@@ -54,12 +64,12 @@
 #ifndef CONFIG_MP_INCLUDED
 	#define CONFIG_IPS	1
 	#ifdef CONFIG_IPS
-		//#define CONFIG_IPS_LEVEL_2	1 //enable this to set default IPS mode to IPS_LEVEL_2
+		#define CONFIG_IPS_LEVEL_2	1 //enable this to set default IPS mode to IPS_LEVEL_2
 	#endif
 	#define SUPPORT_HW_RFOFF_DETECTED	1
 	
 	#define CONFIG_LPS	1
-	#define CONFIG_BT_COEXIST	1
+	#define CONFIG_BT_COEXIST	0
 	//befor link
 	#define CONFIG_ANTENNA_DIVERSITY	 	
 	//after link
@@ -87,10 +97,16 @@
 
 //	Unmarked if there is low p2p scanned ratio; Kurt
 //#define CONFIG_P2P_AGAINST_NOISE	1
+#define CONFIG_P2P_REMOVE_GROUP_INFO
+//#define CONFIG_DBG_P2P
 #endif
 
 //	Added by Kurt 20110511
 //#define CONFIG_TDLS	1
+#ifdef CONFIG_TDLS
+	#define CONFIG_TDLS_AUTOSETUP			1
+	#define CONFIG_TDLS_AUTOCHECKALIVE		1
+#endif
 			
 #ifdef CONFIG_AP_MODE
 	#ifndef CONFIG_NATIVEAP_MLME
@@ -116,7 +132,7 @@
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
-//#define CONFIG_ADAPTOR_INFO_CACHING_FILE // now just applied on 8192cu only, should make it general...
+#define CONFIG_ADAPTOR_INFO_CACHING_FILE // now just applied on 8192cu only, should make it general...
 //#define CONFIG_RESUME_IN_WORKQUEUE
 //#define CONFIG_SET_SCAN_DENY_TIMER
 #define CONFIG_LONG_DELAY_ISSUE
@@ -152,14 +168,14 @@
 #endif
 
 #define CONFIG_PREALLOC_RECV_SKB	1
-//#define CONFIG_REDUCE_USB_TX_INT	1	// Trade-off: Improve performance, but may cause TX URBs blocked by USB Host/Bus driver on few platforms.
+#define CONFIG_REDUCE_USB_TX_INT	1	// Trade-off: Improve performance, but may cause TX URBs blocked by USB Host/Bus driver on few platforms.
 //#define CONFIG_EASY_REPLACEMENT	1
 
 /* 
  * CONFIG_USE_USB_BUFFER_ALLOC_XX uses Linux USB Buffer alloc API and is for Linux platform only now!
  */
 #define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
-//#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
+#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
 
 /* 
  * USB VENDOR REQ BUFFER ALLOCATION METHOD
@@ -255,6 +271,7 @@
 //#define DBG_RX_SIGNAL_DISPLAY_PROCESSING
 //#define DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED "jeff-ap"
 
+//#define DBG_EXPIRATION_CHK
 
 
 //#define DBG_SHOW_MCUFWDL_BEFORE_51_ENABLE
