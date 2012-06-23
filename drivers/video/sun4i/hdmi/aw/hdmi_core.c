@@ -84,6 +84,7 @@ __s32 hdmi_main_task_loop(void)
 {
 	static __u32 times = 0;
 	
+	msleep(15000); //Retry every 1min, Need for stop cpu usage by "softirq"
 	HPD = main_Hpd_Check();
 	if( !HPD )
 	{
