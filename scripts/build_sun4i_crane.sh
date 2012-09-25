@@ -9,7 +9,14 @@ set -e
 
 #Setup common variables
 export ARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabi-
+
+# Build with gnu arm cross compiler
+# export CROSS_COMPILE=arm-linux-gnueabi-
+
+# Build with Sourcery CodeBench (formerly Sourcery G++)
+# This fixes sleep of death  
+export CROSS_COMPILE=arm-none-eabi-
+
 export AS=${CROSS_COMPILE}as
 export LD=${CROSS_COMPILE}ld
 export CC=${CROSS_COMPILE}gcc
@@ -94,6 +101,9 @@ build_modules()
 
 	update_kern_ver
 
+        #build uinput
+        make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} install
+
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
 
@@ -127,6 +137,7 @@ build_modules()
 			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
 			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} CONFIG_CHIP_ID=${CONFIG_CHIP_ID} \
 			INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
+
 }
 
 clean_kernel()
@@ -138,6 +149,9 @@ clean_kernel()
 clean_modules()
 {
 	echo "Cleaning modules"
+        
+	make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
+	
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
 
 	(
