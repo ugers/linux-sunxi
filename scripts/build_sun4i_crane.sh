@@ -101,11 +101,13 @@ build_modules()
 
 	update_kern_ver
 
-        #build uinput
-        make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} install
-
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		CONFIG_CHIP_ID=${CONFIG_CHIP_ID} install
+
+        #build uinput
+	if [ -d "modules/uinput" ]; then
+	    make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} install
+	fi
 
 	(
 	export LANG=en_US.UTF-8
