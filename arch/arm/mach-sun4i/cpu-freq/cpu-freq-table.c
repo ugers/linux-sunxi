@@ -73,7 +73,7 @@ static struct cpufreq_frequency_table sun4i_freq_tbl[] = {
     { .frequency = 1056000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
     { .frequency = 1104000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
     { .frequency = 1152000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
-    { .frequency = 1200000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1224000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
     { .frequency = 1248000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
     { .frequency = 1296000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
     { .frequency = 1344000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
@@ -91,13 +91,13 @@ static struct cpufreq_div_order sun4i_div_order_tbl[] = {
     { .div = SUN4I_CLK_DIV(1, 1, 1, 2), .pll = 204000000,  },
     { .div = SUN4I_CLK_DIV(1, 1, 2, 2), .pll = 408000000,  },
     { .div = SUN4I_CLK_DIV(1, 2, 2, 2), .pll = 816000000,  },
-    { .div = SUN4I_CLK_DIV(1, 3, 2, 2), .pll = 1200000000, },
+    { .div = SUN4I_CLK_DIV(1, 3, 2, 2), .pll = 1224000000, },
     { .div = SUN4I_CLK_DIV(1, 4, 2, 2), .pll = 1248000000, },
 };
 
 #ifdef CONFIG_CPU_FREQ_DVFS
 static struct cpufreq_dvfs sun4i_dvfs_table[] = {
-    {.freq = 1056000000, .volt = 1500}, /* core vdd is 1.50v if cpu frequency is (1008Mhz, xxxxMhz] */
+    {.freq = 1056000000, .volt = 1700}, /* core vdd is 1.50v if cpu frequency is (1008Mhz, xxxxMhz] */
     {.freq = 1008000000, .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (960Mhz, 1008Mhz]  */
     {.freq = 960000000,  .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (912Mhz, 960Mhz]   */
     {.freq = 912000000,  .volt = 1350}, /* core vdd is 1.35v if cpu frequency is (864Mhz, 912Mhz]   */
