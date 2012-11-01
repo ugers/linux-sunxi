@@ -492,11 +492,11 @@ $(MODULE_NAME)-$(CONFIG_MP_INCLUDED) += core/rtw_mp.o \
 					core/rtw_mp_ioctl.o \
 					core/rtw_ioctl_rtl.o
 
-obj-$(CONFIG_RTL8192CU) := $(MODULE_NAME).o
+obj-$(CONFIG_RTL8192CU_SW) := $(MODULE_NAME).o
 
 else
 
-export CONFIG_RTL8192CU = m
+export CONFIG_RTL8192CU_SW = m
 
 all: modules
 
