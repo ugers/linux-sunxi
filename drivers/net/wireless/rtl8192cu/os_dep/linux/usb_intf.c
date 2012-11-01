@@ -1104,6 +1104,13 @@ error_exit:
 }
 #endif
 
+#if 1 /* Allwinnerization */
+#include <mach/sys_config.h>
+extern int sw_usb_disable_hcd(__u32 usbc_no);
+extern int sw_usb_enable_hcd(__u32 usbc_no);
+static int usb_wifi_host = 2;
+#endif
+
 extern char* ifname;
 /*
  * drv_init() - a device potentially for us
@@ -1457,6 +1464,7 @@ extern int console_suspend_enabled;
 
 static int __init rtw_drv_entry(void)
 {
+	int ret;
 #ifdef CONFIG_PLATFORM_RTK_DMP
 	u32 tmp;
 	tmp=readl((volatile unsigned int*)0xb801a608);
@@ -1467,6 +1475,20 @@ static int __init rtw_drv_entry(void)
 
 
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_entry\n"));
+
+#if 1 /* Allwinnerization */
+	/* ----------get usb_wifi_usbc_num------------- */
+	ret = script_parser_fetch("usb_wifi_para", "usb_wifi_usbc_num", (int *)&usb_wifi_host, 64);
+	if(ret != 0){
+		ERR_8192C("ERR: script_parser_fetch usb_wifi_usbc_num failed\n");
+		ret = -ENOMEM;
+		return ret;
+	}
+
+	MSG_8192C("sw_usb_enable_hcd: usbc_num = %d\n", usb_wifi_host);
+
+	sw_usb_enable_hcd(usb_wifi_host);
+#endif
 
 	DBG_871X("rtw driver version=%s \n", DRIVERVERSION);
 	DBG_871X("Build at: %s %s\n", __DATE__, __TIME__);
@@ -1490,6 +1512,11 @@ static void __exit rtw_drv_halt(void)
 	drvpriv.drv_registered = _FALSE;
 	usb_deregister(&drvpriv.rtw_usb_drv);
 	DBG_8192C("-rtw_drv_halt\n");
+
+#if 1 /* Allwinnerization */
+	MSG_8192C("sw_usb_disable_hcd: usbc_num = %d\n", usb_wifi_host);
+	sw_usb_disable_hcd(usb_wifi_host);
+#endif
 }
 
 
