@@ -1,6 +1,5 @@
 /*
- * copyright (c) 2007-2012 Allwinner Technology Co., Ltd.
- * copyright (c) 2007-2012 Danling <danliang@allwinnertech.com>
+ * Copyright (C) 2007-2012 Allwinner Technology Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -543,6 +542,9 @@ __s32 DE_SCAL_Set_Scaling_Coef(__u8 sel, __scal_scan_mod_t *in_scan,
 
 	out_w0 = out_size->width;
 	out_h0 = out_size->height;
+
+	ch1h_smth_level = 0;
+	ch1v_smth_level = 0;
 
 	zoom0_size = 1;
 	zoom1_size = 8;
