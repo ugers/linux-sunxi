@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.42 Kernel Configuration
+# Linux/arm 3.0.50 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_CHIP_ID=1123
@@ -317,6 +317,7 @@ CONFIG_CPU_HAS_PMU=y
 # CONFIG_ARM_ERRATA_460075 is not set
 # CONFIG_ARM_ERRATA_743622 is not set
 # CONFIG_ARM_ERRATA_754322 is not set
+# CONFIG_ARM_ERRATA_775420 is not set
 # CONFIG_FIQ_DEBUGGER is not set
 
 #
@@ -767,6 +768,7 @@ CONFIG_WIRELESS=y
 CONFIG_WIRELESS_EXT=y
 CONFIG_WEXT_CORE=y
 CONFIG_WEXT_PROC=y
+CONFIG_WEXT_PRIV=y
 CONFIG_CFG80211=y
 # CONFIG_NL80211_TESTMODE is not set
 # CONFIG_CFG80211_DEVELOPER_WARNINGS is not set
@@ -952,7 +954,7 @@ CONFIG_WLAN=y
 # CONFIG_IWM is not set
 # CONFIG_LIBERTAS is not set
 # CONFIG_MWIFIEX is not set
-# CONFIG_RTL8192CU_SW is not set
+CONFIG_RTL8192CU_SW=m
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
