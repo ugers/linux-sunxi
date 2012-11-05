@@ -13,7 +13,8 @@ make a10_cm10_defconfig
 KERNEL_VERSION="3.0"
 LICHEE_KDIR=`pwd`
 LICHEE_MOD_DIR=${LICHEE_KDIR}/output/lib/modules/${KERNEL_VERSION}
-CROSS_COMPILE=$LICHEE_KDIR/../toolchains/arm-none-eabi-2012.03-56/bin/arm-none-eabi-	# gcc 4.6.3
+#CROSS_COMPILE=$LICHEE_KDIR/../toolchains/arm-none-eabi-2012.03-56/bin/arm-none-eabi-	# gcc 4.6.3
+CROSS_COMPILE=$LICHEE_KDIR/../toolchains/arm-none-eabi-2010.09-50/bin/arm-none-linux-gnueabi-	# gcc 4.5.1
 export AS=${CROSS_COMPILE}as
 export LD=${CROSS_COMPILE}ld
 export CC=${CROSS_COMPILE}gcc
