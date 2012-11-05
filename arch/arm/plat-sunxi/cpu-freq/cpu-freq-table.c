@@ -27,6 +27,7 @@
 #include <linux/cpufreq.h>
 #include "cpu-freq.h"
 
+#ifndef CONFIG_CPU_FREQ_UV
 static struct cpufreq_frequency_table sun4i_freq_tbl[] = {
 
     { .frequency = 30000,   .index = SUN4I_CLK_DIV(1, 1, 1, 2), },
@@ -86,6 +87,25 @@ static struct cpufreq_frequency_table sun4i_freq_tbl[] = {
     { .frequency = CPUFREQ_TABLE_END,  .index = 0,              },
 };
 
+#else
+static struct cpufreq_frequency_table sun4i_freq_tbl[] = {
+
+    { .frequency = 96000,   .index = SUN4I_CLK_DIV(1, 1, 1, 2), },
+    { .frequency = 204000,  .index = SUN4I_CLK_DIV(1, 1, 2, 2), },
+    { .frequency = 408000,  .index = SUN4I_CLK_DIV(1, 1, 2, 2), },
+    { .frequency = 696000,  .index = SUN4I_CLK_DIV(1, 2, 2, 2), },
+    { .frequency = 816000,  .index = SUN4I_CLK_DIV(1, 2, 2, 2), },
+    { .frequency = 912000,  .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1008000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1056000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1104000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1152000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1200000, .index = SUN4I_CLK_DIV(1, 3, 2, 2), },
+    { .frequency = 1248000, .index = SUN4I_CLK_DIV(1, 4, 2, 2), },
+    { .frequency = CPUFREQ_TABLE_END,  .index = 0,              },
+};
+#endif
+
 /* div, pll (Hz) table */
 static struct cpufreq_div_order sun4i_div_order_tbl[] = {
     { .div = SUN4I_CLK_DIV(1, 1, 1, 2), .pll = 204000000,  },
@@ -96,6 +116,7 @@ static struct cpufreq_div_order sun4i_div_order_tbl[] = {
 };
 
 #ifdef CONFIG_CPU_FREQ_DVFS
+#ifndef CONFIG_CPU_FREQ_UV
 static struct cpufreq_dvfs sun4i_dvfs_table[] = {
     {.freq = 1056000000, .volt = 1500}, /* core vdd is 1.50v if cpu frequency is (1008Mhz, xxxxMhz] */
     {.freq = 1008000000, .volt = 1400}, /* core vdd is 1.40v if cpu frequency is (960Mhz, 1008Mhz]  */
@@ -106,6 +127,23 @@ static struct cpufreq_dvfs sun4i_dvfs_table[] = {
     {.freq = 432000000,  .volt = 1250}, /* core vdd is 1.25v if cpu frequency is (0, 432Mhz]        */
     {.freq = 0,          .volt = 1000}, /* end of cpu dvfs table                                    */
 };
+#else
+static struct cpufreq_dvfs sun4i_dvfs_table[] = {
+    {.freq = 1248000000, .volt = 1650},
+    {.freq = 1200000000, .volt = 1600},
+    {.freq = 1152000000, .volt = 1550},
+    {.freq = 1104000000, .volt = 1500},
+    {.freq = 1056000000, .volt = 1450},
+    {.freq = 1008000000, .volt = 1400},
+    {.freq = 912000000,  .volt = 1350},
+    {.freq = 816000000,  .volt = 1300},
+    {.freq = 696000000,  .volt = 1250},
+    {.freq = 408000000,  .volt = 1250},
+    {.freq = 204000000,  .volt = 1250},
+    {.freq = 96000000,   .volt = 1250},
+    {.freq = 0,          .volt = 1000},
+};
+#endif
 #endif
 
 struct cpufreq_frequency_table * sunxi_cpufreq_table(void) {
