@@ -113,7 +113,7 @@
 #define REG_FSISR					0x0054
 
 #define REG_MCUFWDL				0x0080
-
+#define REG_WOWLAN_REASON			0x0081
 #define REG_HMEBOX_EXT_0			0x0088
 #define REG_HMEBOX_EXT_1			0x008A
 #define REG_HMEBOX_EXT_2			0x008C
@@ -921,6 +921,7 @@ Default: 00b.
 #define EEPROM_VID								0xC // SE Vendor ID.A-B
 #define EEPROM_PID								0xE // SE Device ID. C-D
 #define EEPROM_ENDPOINT_SETTING				0x10
+#define EEPROM_Option_Setting				0x11
 #define EEPROM_CHIRP_K							0x12	// Changed
 #define EEPROM_USB_PHY							0x13	// Changed
 #define EEPROM_NORMAL_BoardType				EEPROM_RF_OPT1	//[7:5]

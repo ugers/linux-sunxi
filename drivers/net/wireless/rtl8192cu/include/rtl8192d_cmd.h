@@ -75,8 +75,12 @@ typedef enum _RTL8192D_H2C_CMD
 	H2C_P2P_PS_OFFLOAD = 8,
 	H2C_MAC_MODE_SEL = 9,
 	H2C_PWRM=15,
+	H2C_WO_WLAN_CMD = 20,	// Wake on Wlan.
 	H2C_P2P_PS_CTW_CMD = 24,
 	H2C_PathDiv = 26,                  //PathDiv--NeilChen--2011.07.15
+	KEEP_ALIVE_CONTROL_CMD=31, //keep alive for wake on wlan
+	DISCONNECT_DECISION_CTRL_CMD=32,
+	REMOTE_WAKE_CTRL_CMD=34,
 	H2C_CMD_MAX
 }RTL8192D_H2C_CMD;
 
@@ -94,11 +98,36 @@ void	rtl8192d_set_FwPwrMode_cmd(_adapter*padapter, u8 Mode);
 void	rtl8192d_set_FwJoinBssReport_cmd(_adapter* padapter, u8 mstatus);
 u8	rtl8192d_set_rssi_cmd(_adapter*padapter, u8 *param);
 u8	rtl8192d_set_raid_cmd(_adapter*padapter, u32 mask, u8 arg);
-void	rtl8192d_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg);
+void	rtl8192d_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg, u8 mac_id);
 #ifdef CONFIG_P2P
 void	rtl8192d_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state);
 #endif //CONFIG_P2P
 
 #endif
+
+#ifdef CONFIG_WOWLAN
+typedef struct _SETWOWLAN_PARM{
+	u8 	mode;
+	u8 	gpio_index;
+	u8	gpio_duration;	
+	u8  second_mode;
+	u8  reserve;
+}SETWOWLAN_PARM, *PSETWOWLAN_PARM;
+
+#define FW_WOWLAN_FUN_EN			BIT(0)
+#define FW_WOWLAN_PATTERN_MATCH		BIT(1)
+#define FW_WOWLAN_MAGIC_PKT			BIT(2)
+#define FW_WOWLAN_UNICAST			BIT(3)
+#define FW_WOWLAN_ALL_PKT_DROP		BIT(4)
+#define FW_WOWLAN_GPIO_ACTIVE		BIT(5)
+#define FW_WOWLAN_REKEY_WAKEUP		BIT(6)
+#define FW_WOWLAN_DEAUTH_WAKEUP		BIT(7)
+
+#define FW_WOWLAN_GPIO_WAKEUP_EN	BIT(0)
+#define FW_FW_PARSE_MAGIC_PKT		BIT(1)
+
+void rtl8192d_set_wowlan_cmd(_adapter* padapter);
+void SetFwRelatedForWoWLAN8192DU(_adapter* 	padapter,u8 bHostIsGoingtoSleep);
+#endif // CONFIG_WOWLAN
 
 
