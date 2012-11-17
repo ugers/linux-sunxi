@@ -74,6 +74,10 @@ void mali_gpu_utilization_handler(u32 utilization);
  */
 void set_mali_parent_power_domain(void* dev);
 
+#ifdef CONFIG_MALI400_BOOST
+int mali_boost(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
