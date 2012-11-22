@@ -40,13 +40,19 @@
 #endif
 
 
+<<<<<<< HEAD:arch/arm/plat-sunxi/cpu-freq/cpu-freq.h
 /* Absolute minimum and maximum */
 #define SUN4I_CPUFREQ_MAX       (1008000000)    /* config the maximum frequency of sun4i core */
-#define SUN4I_CPUFREQ_MIN       (60000000)      /* config the minimum frequency of sun4i core */
+#define SUN4I_CPUFREQ_MIN       (96000000)      /* config the minimum frequency of sun4i core */
 /* Defaults limits for the scaling governor */
 #define SUN4I_SCALING_MIN	(CONFIG_SUNXI_SCALING_MIN * 1000000)
 #define SUN4I_SCALING_MAX	(1008000000)
 #define SUN4I_FREQTRANS_LATENCY (2000000)       /* config the transition latency, based on ns */
+=======
+#define SUN4I_CPUFREQ_MAX	(1008000000)    /* config the maximum frequency of sun4i core */
+#define SUN4I_CPUFREQ_MIN	(96000000)      /* config the minimum frequency of sun4i core */
+#define SUN4I_FREQTRANS_LATENCY	(2000000)       /* config the transition latency, based on ns */
+>>>>>>> 1a48b99... mach-sun4i: cpufreq: Correct minimum core frequency:arch/arm/mach-sun4i/cpu-freq/cpu-freq.h
 #ifdef CONFIG_CPU_FREQ_UV
 #define SUN4I_CPUMV_MAX		(1700)		/* config the maximum voltage of sun4i core in mV */
 #define SUN4I_CPUMV_MIN		(1000)		/* config the minimum voltage of sun4i core in mV */
