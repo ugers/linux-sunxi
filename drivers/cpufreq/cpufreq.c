@@ -357,6 +357,24 @@ out:
 	return err;
 }
 
+static int cpufreq_send_uevent(struct cpufreq_policy *policy)
+{
+	char buf[16];
+	char *envp[3];
+	int ret;
+
+	snprintf(buf, sizeof(buf), "GOV=%s", policy->governor->name);
+	envp[0] = buf;
+	envp[1] = "0";
+	envp[2] = NULL;
+
+	ret = kobject_uevent_env(cpufreq_global_kobject, KOBJ_ADD, envp);
+	if (ret)
+		pr_err("%s failed: %d\n", __func__, ret);
+
+	return ret;
+}
+
 
 /**
  * cpufreq_per_cpu_attr_read() / show_##file_name() -
@@ -468,6 +486,8 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
+
+	ret = cpufreq_send_uevent(policy);
 
 	if (ret)
 		return ret;
