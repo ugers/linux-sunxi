@@ -718,7 +718,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size)
 		goto free_root_inode;
 
-	sb->s_root = d_make_root(root); /* allocate root dentry */
+	sb->s_root = d_alloc_root(root); /* allocate root dentry */
 	if (!sb->s_root) {
 		err = -ENOMEM;
 		goto free_root_inode;
@@ -759,8 +759,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 fail:
 	stop_gc_thread(sbi);
 free_root_inode:
-	dput(sb->s_root);
-	sb->s_root = NULL;
+	iput(root);
 free_node_inode:
 	iput(sbi->node_inode);
 free_nm:
