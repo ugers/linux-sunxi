@@ -265,5 +265,5 @@ void f2fs_evict_inode(struct inode *inode)
 	remove_inode_page(inode);
 	mutex_unlock_op(sbi, ilock);
 no_delete:
-	clear_inode(inode);
+	end_writeback(inode);
 }
