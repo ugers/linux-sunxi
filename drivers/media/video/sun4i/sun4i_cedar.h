@@ -59,9 +59,11 @@ enum IOCTL_CMD {
 	IOCTL_ENGINE_REL,
 	IOCTL_ENGINE_CHECK_DELAY,
 	IOCTL_GET_IC_VER,
-
 	IOCTL_ADJUST_AVS2_ABS,
 	IOCTL_FLUSH_CACHE,
+	IOCTL_SET_REFCOUNT,
+	IOCTL_READ_REG = 0x300,
+	IOCTL_WRITE_REG,
 };
 
 struct cedarv_env_infomation{
@@ -97,6 +99,11 @@ struct cedarv_engine_task_info {
 	int task_prio;
 	unsigned int frametime;
 	unsigned int total_time;
+};
+
+struct cedarv_regop {
+        unsigned int addr;
+        unsigned int value;
 };
 
 /*--------------------------------------------------------------------------------*/
