@@ -75,7 +75,7 @@ EXPORT_SYMBOL(mali_get_user_setting);
 static char mali_dev_name[] = "mali"; /* should be const, but the functions we call requires non-cost */
 
 /* the mali device */
-static struct mali_dev device;
+struct mali_dev device;
 
 
 static int mali_open(struct inode *inode, struct file *filp);
