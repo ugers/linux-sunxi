@@ -22,7 +22,7 @@
 #include <linux/timer.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #ifdef CONFIG_MALI400_BOOST
 #define MALI400_BOOST_RATE	1200000000	/* Hz */
