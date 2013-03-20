@@ -9,6 +9,7 @@ set -e
 
 #Setup common variables
 export ARCH=arm
+export SUBARCH=arm
 export CROSS_COMPILE=arm-linux-gnueabi-
 export AS=${CROSS_COMPILE}as
 export LD=${CROSS_COMPILE}ld
