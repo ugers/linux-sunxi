@@ -172,7 +172,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 	}
 #endif
 
-  MALI_SUCCESS;
+	MALI_SUCCESS;
 }
 
 _mali_osk_errcode_t mali_platform_deinit(void)
