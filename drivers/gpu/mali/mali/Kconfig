@@ -28,3 +28,8 @@ config MALI400_GPU_UTILIZATION
 	  This enables gathering and processing of the utilization of Mali GPU.
 	  This data can be used as a basis to change GPU operating frequency.
 
+config MALI400_BOOST
+  bool "Enable Mali GPU boost"
+  depends on MALI400
+  ---help---
+    This enables a GPU frequency boost triggered from userspace via power HAL.
