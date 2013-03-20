@@ -127,16 +127,49 @@ struct platform_device mali_gpu_device =
 	.dev.release = _mali_release_pm
 };
 
+#ifdef CONFIG_MALI400_BOOST
+static ssize_t boostpulse_write(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	int ret;
+	unsigned long val;
+
+	ret = sscanf(buf, "%ld\n", &val);
+	if (ret < 0)
+		return ret;
+
+	mali_boost();
+
+	return size;
+}
+
+static DEVICE_ATTR(boostpulse, 0200, NULL, boostpulse_write);
+#endif
+
 /** This function is called when the device is probed */
 static int mali_probe(struct platform_device *pdev)
 {
+#ifdef CONFIG_MALI400_BOOST
+	int ret;
+
+	ret = device_create_file(&pdev->dev, &dev_attr_boostpulse);
+	if (ret)
+		MALI_PRINT_ERROR(("%d: device_create_file failed\n", __func__));
+
+	return ret;
+#else
 	return 0;
+#endif
 }
 
 static int mali_remove(struct platform_device *pdev)
 {
 #ifdef CONFIG_PM_RUNTIME
 	pm_runtime_disable(&pdev->dev);
+#endif
+#ifdef CONFIG_MALI400_BOOST
+  device_remove_file(&pdev->dev, &dev_attr_boostpulse);
 #endif
 	return 0;
 }
