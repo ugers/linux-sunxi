@@ -22,7 +22,7 @@
 #include <linux/timer.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
-#include <plat/sys_config.h>
+#include <mach/sys_config.h>
 
 #ifdef CONFIG_MALI400_BOOST
 #define MALI400_BOOST_RATE	1200000000	/* Hz */
@@ -70,7 +70,7 @@ int mali_boost(void)
 	boost_on = true;
 	mutex_unlock(&boost_mutex);
 	mod_timer(&boost_timer, jiffies + msecs_to_jiffies(mali_boost_duration));
-	
+
 	return 0;
 }
 
@@ -101,14 +101,14 @@ _mali_osk_errcode_t mali_platform_init(void)
 
 	/* get mali ahb clock */
 	h_ahb_mali = clk_get(NULL, "ahb_mali");
-	if(!h_ahb_mali){
+	if (!h_ahb_mali)
 		MALI_PRINT(("try to get ahb mali clock failed!\n"));
-		
-	/* get pll4 clock */
+
+	/* get mali clk */
 	h_mali_clk = clk_get(NULL, "mali");
 	if (!h_mali_clk)
 		MALI_PRINT(("try to get mali clock failed!\n"));
-	
+
 	/* get pll4 clock */
 	h_ve_pll = clk_get(NULL, "ve_pll");
 	if (!h_ve_pll)
@@ -149,7 +149,6 @@ _mali_osk_errcode_t mali_platform_init(void)
 	MALI_PRINT(("clock set completed, clock is %d Mhz\n",
 			rate / 1000000));
 #endif
-
 
 	/* enable mali axi/apb clock */
 	if (mali_clk_flag == 0) {
