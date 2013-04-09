@@ -100,6 +100,14 @@ config CSI_GC0307
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the GalaxyCore
 	  GC0307 VGA camera.
+
+config CSI_GC2015
+	tristate "GalaxyCore GC2015 2MP sensor support"
+	depends on I2C && VIDEO_V4L2
+	select	CSI_DEV_SEL
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the GalaxyCore
+	  GC2015 2MP camera.
 	  
 config CSI_OV5640
 	tristate "OmniVision OV5640 5M sensor support"
