@@ -142,17 +142,13 @@ _mali_osk_errcode_t mali_platform_init(void)
 	if (clk_reset(h_mali_clk, 0))
 		MALI_PRINT(("try to reset release failed!\n"));
 
-<<<<<<< HEAD
 #ifdef CONFIG_MALI400_BOOST
-	MALI_DEBUG_PRINT(3, ("Mali: clock set completed, clock is %d Mhz\n",
+	MALI_DEBUG_PRINT(3, ("Mali: clock set completed, clock is %d hz\n",
 			rate / 1000000));
 #else
-	MALI_PRINT(("clock set completed, clock is %d Mhz\n",
+	MALI_PRINT(("clock set completed, clock is %d hz\n",
 			rate / 1000000));
 #endif
-=======
-	MALI_PRINT(("mali clock set completed, clock is  %d Hz\n", rate));
->>>>>>> caa11e27c061ed279f6d7e1d85df7d0caa650878
 
 	/* enable mali axi/apb clock */
 	if (mali_clk_flag == 0) {
