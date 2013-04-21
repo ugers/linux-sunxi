@@ -23,38 +23,7 @@
 #ifndef    __MBR_H__
 #define    __MBR_H__
 
-/*
- * drivers/block/sunxi_nand/include/type_def.h
- *
- * (C) Copyright 2007-2012
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
- */
-
-#ifndef TYPE_DEF_H
-#define TYPE_DEF_H
-
 #include <linux/kernel.h>
-
-  typedef unsigned int __hdle;
-
-#define EPDK_OK 0
-#define EPDK_FAIL -1
-#endif
 
 #define MAX_PART_COUNT		15	 									//max part count
 #define MBR_COPY_NUM        4    									//mbr backup count
@@ -62,14 +31,6 @@
 #define MBR_START_ADDRESS	0x0										//mbr start address
 #define MBR_SIZE			1024									//mbr size
 #define MBR_RESERVED        (MBR_SIZE - 20 - (MAX_PART_COUNT * 64)) //mbr reserved space
-
-extern struct __NandDriverGlobal_t NandDriverInfo;
-
-extern struct __NandStorageInfo_t  NandStorageInfo;
-
-#define DiskSize  (SECTOR_CNT_OF_SINGLE_PAGE * PAGE_CNT_OF_PHY_BLK * BLOCK_CNT_OF_DIE * \
-            DIE_CNT_OF_CHIP * NandStorageInfo.ChipCnt  / 1024 * DATA_BLK_CNT_OF_ZONE)
-
 
 struct nand_disk{
 	unsigned long size;
@@ -101,7 +62,5 @@ typedef struct tag_MBR{
 	PARTITION array[MAX_PART_COUNT];// part info
 	__u8 res[MBR_RESERVED];         // reserved space
 }MBR;
-
-int mbr2disks(struct nand_disk* disk_array);
 
 #endif    //__MBR_H__

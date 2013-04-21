@@ -554,7 +554,7 @@ static int i2c_sunxi_core_process(struct sunxi_i2c *i2c)
 	case 0x18: /* SLA+W has been transmitted; ACK has been received */
 		/* if any, send second part of 10 bits addr */
 		if(i2c->msg[i2c->msg_idx].flags & I2C_M_TEN) {
-			tmp = i2c->msg[i2c->msg_idx].addr & 0x7f;  /* the remaining 8 bits of address */
+			tmp = i2c->msg[i2c->msg_idx].addr & 0xff;  /* the remaining 8 bits of address */
 			aw_twi_put_byte(base_addr, &tmp); /* case 0xd0: */
 			break;
 		}
@@ -1014,13 +1014,6 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 	i2c_dbg(KERN_INFO "I2C: %s: AW16XX I2C adapter\n",
 	       dev_name(&i2c->adap.dev));
 
-	i2c_dbg("**********start************\n");
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x0c));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x10));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x14));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x18));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x1c));
-	i2c_dbg("**********end************\n");
 
 	return 0;
 
