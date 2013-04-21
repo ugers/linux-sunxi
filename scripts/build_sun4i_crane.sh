@@ -96,6 +96,11 @@ build_modules()
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		install
 
+        #build uinput
+	if [ -d "modules/uinput" ]; then
+	    make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} install
+	fi
+
 	(
 	export LANG=en_US.UTF-8
 	unset LANGUAGE
