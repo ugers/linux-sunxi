@@ -744,6 +744,12 @@ config  TOUCHSCREEN_GT811
        help
           GT811 touchscreen driver
 
+config  TOUCHSCREEN_GT82x
+       tristate  "dpt microelctronics gt82x touchscreen driver"
+       depends on I2C
+       help
+          GT82x touchscreen driver
+
 config  TOUCHSCREEN_GT818
        tristate  "dpt microelctronics gt818 touchscreen driver"
        depends on I2C
