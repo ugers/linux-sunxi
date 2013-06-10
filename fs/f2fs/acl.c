@@ -261,15 +261,17 @@ int f2fs_init_acl(struct inode *inode, struct inode *dir)
 	}
 
 	if (test_opt(sbi, POSIX_ACL) && acl) {
+		mode_t mode = inode->i_mode;
 
 		if (S_ISDIR(inode->i_mode)) {
 			error = f2fs_set_acl(inode, ACL_TYPE_DEFAULT, acl);
 			if (error)
 				goto cleanup;
 		}
-		error = posix_acl_create(&acl, GFP_KERNEL, &inode->i_mode);
+		error = posix_acl_create(&acl, GFP_KERNEL, &mode);
 		if (error < 0)
 			return error;
+		inode->i_mode = mode;
 		if (error > 0)
 			error = f2fs_set_acl(inode, ACL_TYPE_ACCESS, acl);
 	}
@@ -283,7 +285,7 @@ int f2fs_acl_chmod(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct posix_acl *acl;
 	int error;
-	umode_t mode = get_inode_mode(inode);
+	mode_t mode = get_inode_mode(inode);
 
 	if (!test_opt(sbi, POSIX_ACL))
 		return 0;
