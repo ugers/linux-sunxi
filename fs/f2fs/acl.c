@@ -191,18 +191,24 @@ static struct posix_acl *f2fs_get_acl(struct inode *inode, int type)
 
 int f2fs_check_acl(struct inode *inode, int mask)
 {
-	struct posix_acl *acl;
+	int error = -EAGAIN;
 
-	acl = f2fs_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		int error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
+	if (mask & MAY_NOT_BLOCK) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			error = -ECHILD;
+	} else {
+		struct posix_acl *acl;
+
+		acl = f2fs_get_acl(inode, ACL_TYPE_ACCESS);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+		if (acl) {
+			error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+		}
 	}
 
-	return -EAGAIN;
+	return error;
 }
 
 static int f2fs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
