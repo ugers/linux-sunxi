@@ -189,7 +189,7 @@ static struct posix_acl *f2fs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int f2fs_check_acl(struct inode *inode, int mask)
+int f2fs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	int error = -EAGAIN;
 
