@@ -193,7 +193,7 @@ int f2fs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	int error = -EAGAIN;
 
-	if (mask & MAY_NOT_BLOCK) {
+	if (flags & IPERM_FLAG_RCU) {
 		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
 			error = -ECHILD;
 	} else {
