@@ -26,13 +26,39 @@
 #include <ump/ump_kernel_interface.h>
 #endif
 
+#include <linux/console.h>
+
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 #include "disp_lcd.h"
 #include "dev_fb.h"
+#include "disp_display.h"
 
 
-__disp_drv_t g_disp_drv;
+struct info_mm {
+	void *info_base;	/* Virtual address */
+	unsigned long mem_start;	/* Start of frame buffer mem */
+	/* (physical address) */
+	__u32 mem_len;		/* Length of frame buffer mem */
+};
+
+struct __disp_drv_t {
+	__u32 mid;
+	__u32 used;
+	__u32 status;
+	__u32 exit_mode;	/* 0:clean all  1:disable interrupt */
+	__bool b_cache[2];
+	__bool b_lcd_open[2];
+} ;
+
+struct alloc_struct_t {
+	__u32 address; /* Application memory address */
+	__u32 size; /* The size of the allocated memory */
+	__u32 o_size; /* User application memory size */
+	struct alloc_struct_t *next;
+};
+
+static struct __disp_drv_t g_disp_drv;
 
 /* alloc based on 4K byte */
 #define MY_BYTE_ALIGN(x) (((x + (4*1024-1)) >> 12) << 12)
@@ -291,7 +317,7 @@ __s32 DRV_DISP_Init(void)
 	para.base_pwm = (__u32) g_fbi.base_pwm;
 	para.disp_int_process = DRV_disp_int_process;
 
-	memset(&g_disp_drv, 0, sizeof(__disp_drv_t));
+	memset(&g_disp_drv, 0, sizeof(struct __disp_drv_t));
 
 	BSP_disp_init(&para);
 	BSP_disp_open();
@@ -378,7 +404,7 @@ disp_mem_release(int sel)
 	return 0;
 }
 
-int disp_mmap(struct file *filp, struct vm_area_struct *vma)
+static int disp_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	// - PAGE_OFFSET;
 	unsigned long physics = g_disp_mm[g_disp_mm_sel].mem_start;
@@ -400,12 +426,15 @@ struct dev_disp_data {
 #define SUNXI_DISP_VERSION_PENDING -1
 #define SUNXI_DISP_VERSION_SKIPPED -2
 	int version;
+	struct  {
+		__u32 layer[SUNXI_DISP_MAX_LAYERS];
+	} layers[2];
 };
 
-int disp_open(struct inode *inode, struct file *filp)
+static int disp_open(struct inode *inode, struct file *filp)
 {
 	struct dev_disp_data *data =
-		kmalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
+		kzalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
 	static bool warned;
 
 	if (!data)
@@ -427,9 +456,17 @@ int disp_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-int disp_release(struct inode *inode, struct file *filp)
+static int disp_release(struct inode *inode, struct file *filp)
 {
 	struct dev_disp_data *data = filp->private_data;
+	int i,j;
+
+	for (j = 0; j < 2; j++)
+		for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+			if (data->layers[j].layer[i]) {
+				__wrn("layer allocated at close: %i,%u\n", j, data->layers[j].layer[i]);
+				BSP_disp_layer_release(j,data->layers[j].layer[i]);
+			}
 
 	kfree(data);
 	filp->private_data = NULL;
@@ -437,14 +474,14 @@ int disp_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-ssize_t disp_read(struct file *filp, char __user *buf, size_t count,
-		  loff_t *ppos)
+static ssize_t disp_read(struct file *filp,
+		char __user *buf, size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-ssize_t disp_write(struct file *filp, const char __user *buf, size_t count,
-		   loff_t *ppos)
+static ssize_t disp_write(struct file *filp,
+		const char __user *buf, size_t count, loff_t *ppos)
 {
 	return 0;
 }
@@ -558,12 +595,12 @@ int disp_resume(int clk, int status)
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-void backlight_early_suspend(struct early_suspend *h)
+static void backlight_early_suspend(struct early_suspend *h)
 {
 	disp_suspend(2, 1);
 }
 
-void backlight_late_resume(struct early_suspend *h)
+static void backlight_late_resume(struct early_suspend *h)
 {
 	disp_resume(2, 1);
 }
@@ -578,6 +615,11 @@ static struct early_suspend backlight_early_suspend_handler = {
 static int
 disp_normal_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	int i;
+	console_lock();
+	for(i = 0; i < SUNXI_MAX_FB; i++)
+		fb_set_suspend(g_fbi.fbinfo[i], 1);
+	console_unlock();
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	disp_suspend(3, 3);
 #else
@@ -589,11 +631,16 @@ disp_normal_suspend(struct platform_device *pdev, pm_message_t state)
 static int
 disp_normal_resume(struct platform_device *pdev)
 {
+	int i;
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	disp_resume(3, 3);
 #else
 	disp_resume(1, 2);
 #endif
+	console_lock();
+	for(i = 0; i < SUNXI_MAX_FB; i++)
+		fb_set_suspend(g_fbi.fbinfo[i], 0);
+	console_unlock();
 	return 0;
 }
 
@@ -609,7 +656,7 @@ disp_shutdown(struct platform_device *pdev)
 	}
 }
 
-long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct dev_disp_data *filp_data = filp->private_data;
 	unsigned long karg[4];
@@ -911,10 +958,31 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = BSP_disp_layer_request(ubuffer[0],
 					     (__disp_layer_work_mode_t)
 					     ubuffer[1]);
+		if (ret != DIS_NULL) {
+			int i;
+			__wrn("layer allocated: %lu,%i\n", ubuffer[0], ret);
+			for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+				if (! filp_data->layers[ubuffer[0]].layer[i]) {
+					filp_data->layers[ubuffer[0]].layer[i] = ret;
+					break;
+				}
+			BUG_ON (i == SUNXI_DISP_MAX_LAYERS);
+		}
 		break;
 
 	case DISP_CMD_LAYER_RELEASE:
 		ret = BSP_disp_layer_release(ubuffer[0], ubuffer[1]);
+		if (ret == DIS_SUCCESS) {
+			int i;
+			__wrn("layer released: %lu,%lu\n", ubuffer[0], ubuffer[1]);
+			for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+				if (filp_data->layers[ubuffer[0]].layer[i] == ubuffer[1]) {
+					filp_data->layers[ubuffer[0]].layer[i] = 0;
+					break;
+				}
+			if (i == SUNXI_DISP_MAX_LAYERS)
+				__wrn("released layer not allocated in this session: %lu,%lu\n", ubuffer[0], ubuffer[1]);
+		}
 		break;
 
 	case DISP_CMD_LAYER_OPEN:
@@ -1832,7 +1900,7 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-void
+static void
 disp_device_release(struct device *dev)
 {
 	/* FILL ME! */

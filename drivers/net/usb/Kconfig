@@ -455,6 +455,14 @@ config USB_SIERRA_NET
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra_net.
 
+config USB_NET_SR9600
+	  tristate "SR9600 based Ethernet adapters"
+	  depends on USB_USBNET
+	  help
+	    Choose this option if you're using a 10/100 Ethernet USB2
+	    adapter based on the SR9600 controller. This includes
+	    adapters marketed under the DeLOCK brand.
+
 config USB_VL600
 	tristate "LG VL600 modem dongle"
 	depends on USB_NET_CDCETHER

@@ -93,7 +93,8 @@ static inline int __script_prop_fetch(const char *name_s, const char *name_p,
 
 int script_parser_fetch(char *main_name, char *sub_name, int value[], int count)
 {
-	BUG_ON(count < 1);
+       if (count < 1)
+               return SCRIPT_PARSER_KEY_NOT_FIND;
 	return __script_prop_fetch(main_name, sub_name, NULL, value, count<<2);
 }
 EXPORT_SYMBOL(script_parser_fetch);

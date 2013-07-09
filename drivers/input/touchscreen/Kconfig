@@ -744,11 +744,24 @@ config  TOUCHSCREEN_GT811
        help
           GT811 touchscreen driver
 
+config  TOUCHSCREEN_GT82x
+       tristate  "dpt microelctronics gt82x touchscreen driver"
+       depends on I2C
+       help
+          GT82x touchscreen driver
+
 config  TOUCHSCREEN_GT818
        tristate  "dpt microelctronics gt818 touchscreen driver"
        depends on I2C
        help
           GT801 touchscreen driver
+          
+config	TOUCHSCREEN_GT801NI
+       tristate "hack to load binary module for GT801NI"
+       depends on I2C
+       help
+          This implements a symbol to be able to load a
+          binary module for GT801NI touchscreen
 
 config  TOUCHSCREEN_SUN4I_TS
        tristate  "sun4i-ts touchscreen driver"

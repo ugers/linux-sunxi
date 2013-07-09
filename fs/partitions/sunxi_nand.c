@@ -4,10 +4,8 @@
  */
 
 #include "check.h"
-#include "sunxi_mbr.h"
-
-extern struct nand_disk disk_array[];
-extern __u32 calc_crc32(void * buffer, __u32 length);
+#include <plat/mbr.h>
+#include <linux/crc32.h>
 
 int sunxi_nand_partition(struct parsed_partitions *state)
 {
@@ -25,7 +23,8 @@ int sunxi_nand_partition(struct parsed_partitions *state)
 	bdevname(state->bdev, b);
 
 	for(i = 0; i < MBR_COPY_NUM; i++, mbr++) {
-		if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
+		__u32 iv=0xffffffff;
+		if(*(__u32 *)mbr == (crc32_le(iv,(__u8 *)mbr + 4,MBR_SIZE - 4) ^ iv))
 			break;
 		printk(KERN_WARNING "Dev Sunxi %s header: CRC bad for MBR %d\n", b, i);
 	}
@@ -40,7 +39,7 @@ int sunxi_nand_partition(struct parsed_partitions *state)
 		/* special case: last partition uses up rest of NAND space */
 		__u32 size = mbr->array[part_cnt].lenlo;
 		if (part_cnt == mbr->PartCount - 1)
-			size = disk_array[0].size - mbr->array[part_cnt].addrlo;
+			size = get_capacity(state->bdev->bd_disk) - mbr->array[part_cnt].addrlo;
 		printk(KERN_WARNING "Dev %s: part %d, start %d, size %d\n", b, part_cnt + 1,
 			mbr->array[part_cnt].addrlo, size);
 		put_partition(state, part_cnt + 1, mbr->array[part_cnt].addrlo, size);

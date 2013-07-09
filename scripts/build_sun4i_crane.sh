@@ -10,7 +10,7 @@ set -e
 #Setup common variables
 export ARCH=arm
 export SUBARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabi-
+export CROSS_COMPILE=toolchain/bin/arm-none-eabi-
 export AS=${CROSS_COMPILE}as
 export LD=${CROSS_COMPILE}ld
 export CC=${CROSS_COMPILE}gcc
@@ -96,6 +96,11 @@ build_modules()
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} \
 		install
 
+        #build uinput
+	if [ -d "modules/uinput" ]; then
+	    make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} install
+	fi
+
 	(
 	export LANG=en_US.UTF-8
 	unset LANGUAGE
@@ -126,6 +131,7 @@ build_modules()
 			CROSS_COMPILE=${CROSS_COMPILE} ARCH=arm LINUXVER=${KERNEL_VERSION} \
 			LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LINUXDIR=${LICHEE_KDIR} \
 			INSTALL_DIR=${LICHEE_MOD_DIR} OEM_ANDROID=1 dhd-cdc-sdmmc-gpl
+
 }
 
 clean_kernel()
@@ -137,6 +143,9 @@ clean_kernel()
 clean_modules()
 {
 	echo "Cleaning modules"
+
+	make -C modules/uinput LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
+
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
 
 	(

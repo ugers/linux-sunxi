@@ -219,18 +219,17 @@ Lcd_Panel_Parameter_Check(__u32 sel)
 			image_base_addr = DE_Get_Reg_Base(sel);
 
 			/* set background color */
-			sys_put_wvalue(image_base_addr + 0x804, 0xffff00ff);
+			writel(0xffff00ff, image_base_addr + 0x804);
 
-			reg_value = sys_get_wvalue(image_base_addr + 0x800);
+			reg_value = readl(image_base_addr + 0x800);
 			/* close all layer */
-			sys_put_wvalue(image_base_addr + 0x800,
-				       reg_value & 0xfffff0ff);
+			writel(reg_value & 0xfffff0ff, image_base_addr + 0x800);
 
 			LCD_delay_ms(2000);
 			/* set background color */
-			sys_put_wvalue(image_base_addr + 0x804, 0x00000000);
+			writel(0x00000000, image_base_addr + 0x804);
 			/* open layer */
-			sys_put_wvalue(image_base_addr + 0x800, reg_value);
+			writel(reg_value, image_base_addr + 0x800);
 
 			DE_WRN("*** Try new parameters, you can make it "
 			       "pass!\n");
@@ -710,14 +709,14 @@ static __u32 pwm_read_reg(__u32 offset)
 {
 	__u32 value = 0;
 
-	value = sys_get_wvalue(gdisp.init_para.base_pwm + offset);
+	value = readl(gdisp.init_para.base_pwm + offset);
 
 	return value;
 }
 
 static __s32 pwm_write_reg(__u32 offset, __u32 value)
 {
-	sys_put_wvalue(gdisp.init_para.base_pwm + offset, value);
+	writel(value, gdisp.init_para.base_pwm + offset);
 
 #ifdef CONFIG_ARCH_SUN4I
 	LCD_delay_ms(20);
@@ -1184,11 +1183,11 @@ __s32 Disp_lcdc_pin_cfg(__u32 sel, __disp_output_type_t out_type, __u32 bon)
 			reg_start = gdisp.init_para.base_pioc + 0xfc;
 
 		if (bon) {
-			tmp = sys_get_wvalue(reg_start + 0x0c) & 0xffff00ff;
-			sys_put_wvalue(reg_start + 0x0c, tmp | 0x00002200);
+			tmp = readl(reg_start + 0x0c) & 0xffff00ff;
+			writel(tmp | 0x00002200, reg_start + 0x0c);
 		} else {
-			tmp = sys_get_wvalue(reg_start + 0x0c) & 0xffff00ff;
-			sys_put_wvalue(reg_start + 0x0c, tmp);
+			tmp = readl(reg_start + 0x0c) & 0xffff00ff;
+			writel(tmp, reg_start + 0x0c);
 		}
 	}
 
@@ -1856,7 +1855,6 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 		videomode->pixclock = HZ2PICOS(
 			clk_tab.vga_clk_tab[vga_mode].tve_clk /
 			clk_tab.vga_clk_tab[vga_mode].pre_scale);
-		interlaced = Disp_get_screen_scan_mode(vga_mode);
 	} else {
 		DE_INF("get videomode fail because device is not output !\n");
 		return DIS_FAIL;
