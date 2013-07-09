@@ -1,4 +1,19 @@
-	Linux kernel release 3.x <http://kernel.org/>
+BUILDING THE KERNEL
+
+Install Sourcery CodeBench Lite Edition
+https://sourcery.mentor.com/sgpp/lite/arm/portal/package8736/public/arm-none-eabi/arm-2011.03-42-arm-none-eabi.bin
+
+1. git clone https://github.com/ugers/linux-sunxi.git
+2. cd linux-allwinner
+3. scripts/build_sun4i_crane kernel
+
+The kernel will be found on the output folder.
+
+To copy it into the CM10.1 source folder
+cp output/bImage ../device/softwinner/907/kernel
+cp output/lib/modules/3.0.62+/*.ko ../device/softwinner/907/prebuilt/lib/modules 
+
+  Linux kernel release 3.x <http://kernel.org/>
 
 These are the release notes for Linux version 3.  Read them carefully,
 as they tell you what this is all about, explain how to install the
