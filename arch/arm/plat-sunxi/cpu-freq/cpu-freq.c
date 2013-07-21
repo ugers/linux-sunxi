@@ -626,6 +626,54 @@ static int sun4i_cpufreq_resume(struct cpufreq_policy *policy)
 
 #endif  /* #ifdef CONFIG_PM */
 
+#ifdef CONFIG_CPU_FREQ_UV
+ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
+{
+	struct cpufreq_dvfs *sun4i_dvfs_table = sunxi_dvfs_table();
+	int i, len = 0;
+
+	if (buf) {
+		for (i = 0; i < 12; i++) {
+			if (sun4i_dvfs_table[i].freq == 0)
+				continue;
+			len += sprintf(buf + len, "%dmhz: %d mV\n",
+				sun4i_dvfs_table[i].freq / 1000000,
+				sun4i_dvfs_table[i].volt);
+		}
+	}
+
+	return len;
+}
+
+ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
+                                      const char *buf, size_t count)
+{
+	struct cpufreq_dvfs *sun4i_dvfs_table = sunxi_dvfs_table();
+	unsigned int ret;
+	int i = 0;
+	int val[12];
+
+	ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d\n",
+			   &val[0], &val[1], &val[2], &val[3],
+			   &val[4], &val[5], &val[6], &val[7],
+			   &val[8], &val[9], &val[10], &val[11]);
+
+	if (ret != 12)
+		return -EINVAL;
+
+	for (i = 0; i < 12; i++) {
+		if (val[i] > SUN4I_CPUMV_MAX)
+			val[i] = SUN4I_CPUMV_MAX;
+		else if (val[i] < SUN4I_CPUMV_MIN)
+			val[i] = SUN4I_CPUMV_MIN;
+
+		sun4i_dvfs_table[i].volt = val[i];
+	}
+
+	return count;
+}
+#endif
+
 static struct freq_attr *sun4i_cpufreq_attr[] = {
     &cpufreq_freq_attr_scaling_available_freqs,
     NULL,
