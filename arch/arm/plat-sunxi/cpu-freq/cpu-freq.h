@@ -47,6 +47,10 @@
 #define SUN4I_SCALING_MIN	(CONFIG_SUNXI_SCALING_MIN * 1000000)
 #define SUN4I_SCALING_MAX	(1008000000)
 #define SUN4I_FREQTRANS_LATENCY (2000000)       /* config the transition latency, based on ns */
+#ifdef CONFIG_CPU_FREQ_UV
+#define SUN4I_CPUMV_MAX    (1700)    /* config the maximum voltage of sun4i core in mV */
+#define SUN4I_CPUMV_MIN    (1000)    /* config the minimum voltage of sun4i core in mV */
+#endif
 
 struct sun4i_clk_div_t {
     __u32   cpu_div:4;      /* division of cpu clock, divide core_pll */
@@ -84,6 +88,11 @@ struct cpufreq_frequency_table *sunxi_cpufreq_table(void);
 struct cpufreq_div_order *sunxi_div_order_table(int *length);
 #ifdef CONFIG_CPU_FREQ_DVFS
 struct cpufreq_dvfs *sunxi_dvfs_table(void);
+#ifdef CONFIG_CPU_FREQ_UV
+ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf);
+ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
+                                      const char *buf, size_t count);
+#endif
 #endif
 
 #endif  /* #ifndef __SUN4I_CPU_FREQ_H__ */
