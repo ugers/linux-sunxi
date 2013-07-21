@@ -581,6 +581,13 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+#ifdef CONFIG_CPU_FREQ_UV
+extern ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf);
+
+extern ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
+          const char *buf, size_t count);
+#endif
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -598,6 +605,9 @@ cpufreq_freq_attr_rw(scaling_setspeed);
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 cpufreq_freq_attr_ro(user_event_notify);
 #endif
+#ifdef CONFIG_CPU_FREQ_UV
+cpufreq_freq_attr_rw(UV_mV_table);
+#endif
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -613,6 +623,9 @@ static struct attribute *default_attrs[] = {
 	&scaling_setspeed.attr,
 #ifdef CONFIG_CPU_FREQ_USR_EVNT_NOTIFY
 	&user_event_notify.attr,
+#endif
+#ifdef CONFIG_CPU_FREQ_UV
+  &UV_mV_table.attr,
 #endif
 	NULL
 };
