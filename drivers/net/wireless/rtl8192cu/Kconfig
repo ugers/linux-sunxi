@@ -1,8 +1,9 @@
 config RTL8192CU_SW
-	tristate "Realtek 8192C USB WiFi for SW"
+	tristate "Realtek 8192C USB WiFi (Allwinner)"
 	depends on USB
-    select WIRELESS_EXT
-    select WEXT_PRIV
+	select WIRELESS_EXT
+	select WEXT_PRIV
+        select MAC80211
 	---help---
 	  Help message of RTL8192CU_SW
 
