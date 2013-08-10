@@ -808,6 +808,24 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         		return -EFAULT;
         	}
         }
+        
+        case IOCTL_READ_REG:
+        {
+                struct cedarv_regop reg_para;
+                if (copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
+                        return -EFAULT;
+                return readl(reg_para.addr);
+        }
+
+        case IOCTL_WRITE_REG:
+        {
+                struct cedarv_regop reg_para;
+                if (copy_from_user(&reg_para, (void __user*)arg, sizeof(struct cedarv_regop)))
+                        return -EFAULT;
+                writel(reg_para.value, reg_para.addr);
+                break;
+        }
+        
         case IOCTL_FLUSH_CACHE:
         {
         	struct cedarv_cache_range cache_range;
@@ -818,6 +836,13 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			flush_clean_user_range(cache_range.start, cache_range.end);
         }
         break;
+        
+        case IOCTL_SET_REFCOUNT:
+        {
+                cedar_devp->ref_count = (int)arg;
+                break;
+        }
+        
         default:
         break;
     }
@@ -913,6 +938,7 @@ static int cedardev_mmap(struct file *filp, struct vm_area_struct *vma)
     return 0;
 }
 
+#ifdef CONFIG_PM
 static int snd_sw_cedar_suspend(struct platform_device *pdev,pm_message_t state)
 {
 	disable_cedar_hw_clk();
@@ -929,6 +955,7 @@ static int snd_sw_cedar_resume(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static struct file_operations cedardev_fops = {
     .owner   = THIS_MODULE,
