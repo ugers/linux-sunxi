@@ -29,6 +29,7 @@
 
 #include "sndi2s.h"
 
+static int i2s_used = 0;
 static struct clk *xtal;
 static int clk_users;
 static DEFINE_MUTEX(clk_lock);
@@ -149,7 +150,7 @@ static __mclk_set_inf  MCLK_INF[] =
 
     //22.05k bitrate
     { 22050, 128,  8, 1}, { 22050, 256,  4, 1},
-    { 22050, 512,  2, 1},
+    { 22050, 512,  2, 1}, 
 
     //44.1k bitrate
     { 44100, 128,  4, 1}, { 44100, 256,  2, 1}, { 44100, 512,  1, 1},
@@ -169,10 +170,10 @@ static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, u
 	u32 i, j, ret = -EINVAL;
 
 	for(i=0; i< 100; i++) {
-		 if((MCLK_INF[i].samp_rate == sample_rate) &&
+		 if((MCLK_INF[i].samp_rate == sample_rate) && 
 		 	((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128))) {
 			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++) {
-					if((BCLK_INF[j].bitpersamp == sample_width) &&
+					if((BCLK_INF[j].bitpersamp == sample_width) && 
 						(BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs)) {
 						 //set mclk and bclk division
 						 *mclk_div = MCLK_INF[i].clk_div;
@@ -202,7 +203,7 @@ static int sun4i_sndi2s_hw_params(struct snd_pcm_substream *substream,
 	u32 mclk_div=0, mpll=0, bclk_div=0, mult_fs=0;
 
 	get_clock_divder(rate, 32, &mclk_div, &mpll, &bclk_div, &mult_fs);
-
+	
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
@@ -216,19 +217,19 @@ static int sun4i_sndi2s_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0 , mpll, 0);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0 , mpll, 0);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_MCLK, mclk_div);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_BCLK, bclk_div);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_clkdiv(codec_dai, 0, mult_fs);
 	if (ret < 0)
 		return ret;
@@ -247,67 +248,51 @@ static struct snd_soc_dai_link sun4i_sndi2s_dai_link = {
 	.stream_name 	= "SUN4I-I2S",
 	.cpu_dai_name 	= "sun4i-i2s.0",
 	.codec_dai_name = "sndi2s",
-	.platform_name 	= "sun4i-i2s-pcm-audio.0",
+	.platform_name 	= "sun4i-i2s-pcm-audio.0",	
 	.codec_name 	= "sun4i-i2s-codec.0",
 	.ops 			= &sun4i_sndi2s_ops,
 };
 
 static struct snd_soc_card snd_soc_sun4i_sndi2s = {
 	.name = "sun4i-sndi2s",
-	.owner = THIS_MODULE,
 	.dai_link = &sun4i_sndi2s_dai_link,
 	.num_links = 1,
 };
 
-static int __devinit sun4i_sndi2s_probe(struct platform_device *pdev)
-{
-	snd_soc_sun4i_sndi2s.dev = &pdev->dev;
-	return snd_soc_register_card(&snd_soc_sun4i_sndi2s);
-}
-
-static int __devexit sun4i_sndi2s_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&snd_soc_sun4i_sndi2s);
-	return 0;
-}
-
-static struct platform_device sun4i_sndi2s_device = {
-	.name = "sun4i-sndi2s",
-};
-
-static struct platform_driver sun4i_sndi2s_driver = {
-	.probe = sun4i_sndi2s_probe,
-	.remove = __devexit_p(sun4i_sndi2s_remove),
-	.driver = {
-		.name = "sun4i-sndi2s",
-		.owner = THIS_MODULE,
-	},
-};
+static struct platform_device *sun4i_sndi2s_device;
 
 static int __init sun4i_sndi2s_init(void)
 {
-	int ret, i2s_used = 0;
-
-	ret = script_parser_fetch("i2s_para", "i2s_used", &i2s_used, 1);
-	if (ret != 0 || !i2s_used)
-		return -ENODEV;
-
-	ret = platform_device_register(&sun4i_sndi2s_device);
-	if (ret < 0)
-		return ret;
-
-	ret = platform_driver_register(&sun4i_sndi2s_driver);
-	if (ret < 0) {
-		platform_device_unregister(&sun4i_sndi2s_device);
-		return ret;
+	int ret;
+	int ret2;
+	
+	ret2 = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
+	if (ret2) {
+        printk("[I2S]sun4i_sndi2s_init fetch i2s using configuration failed\n");
+    } 
+    
+    if (i2s_used) {
+		sun4i_sndi2s_device = platform_device_alloc("soc-audio", 2);
+		if(!sun4i_sndi2s_device)
+			return -ENOMEM;
+		platform_set_drvdata(sun4i_sndi2s_device, &snd_soc_sun4i_sndi2s);
+		ret = platform_device_add(sun4i_sndi2s_device);		
+		if (ret) {			
+			platform_device_put(sun4i_sndi2s_device);
+		}
+	}else{
+		printk("[I2S]sun4i_sndi2s cannot find any using configuration for controllers, return directly!\n");
+        return 0;
 	}
-	return 0;
+	return ret;
 }
 
 static void __exit sun4i_sndi2s_exit(void)
 {
-	platform_driver_unregister(&sun4i_sndi2s_driver);
-	platform_device_unregister(&sun4i_sndi2s_device);
+	if(i2s_used) {
+		i2s_used = 0;
+		platform_device_unregister(sun4i_sndi2s_device);
+	}
 }
 
 module_init(sun4i_sndi2s_init);

@@ -25,6 +25,7 @@
 
 #include "sndspdif.h"
 
+static int spdif_used = 0;
 #define SNDSPDIF_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
 #define SNDSPDIF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
@@ -156,31 +157,37 @@ static struct platform_driver sndspdif_codec_driver = {
 };
 
 static int __init sndspdif_codec_init(void)
-{
-	int ret, spdif_used = 0;
+{	
+	int err = 0;
+	int ret = 0;
+	
+	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
+	if (ret) {
+		return -1;
+        printk("[SPDIF]sndspdif_init fetch spdif using configuration failed\n");
+    } 
+	
+	if (spdif_used) {
+		if((err = platform_device_register(&sndspdif_codec_device)) < 0)
+			return err;
 
-	ret = script_parser_fetch("spdif_para", "spdif_used", &spdif_used, 1);
-	if (ret != 0 || !spdif_used)
-		return -ENODEV;
-
-	ret = platform_device_register(&sndspdif_codec_device);
-	if (ret < 0)
-		return ret;
-
-	ret = platform_driver_register(&sndspdif_codec_driver);
-	if (ret < 0) {
-		platform_device_unregister(&sndspdif_codec_device);
-		return ret;
-	}
-
+		if ((err = platform_driver_register(&sndspdif_codec_driver)) < 0)
+			return err;
+	} else {
+        printk("[SPDIF]sndspdif cannot find any using configuration for controllers, return directly!\n");
+        return 0;
+    }
+	
 	return 0;
 }
 module_init(sndspdif_codec_init);
 
 static void __exit sndspdif_codec_exit(void)
 {
-	platform_driver_unregister(&sndspdif_codec_driver);
-	platform_device_unregister(&sndspdif_codec_device);
+	if (spdif_used) {	
+		spdif_used = 0;
+		platform_driver_unregister(&sndspdif_codec_driver);
+	}
 }
 module_exit(sndspdif_codec_exit);
 
