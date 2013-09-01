@@ -76,6 +76,7 @@ struct i2c_adapter *adap;
 struct device *dev;
 };
 
+static char *ctp_para_name = "ctp_para";
 static struct class *i2c_dev_class;
 static LIST_HEAD (i2c_dev_list);
 static DEFINE_SPINLOCK(i2c_dev_list_lock);
@@ -266,7 +267,7 @@ static int ctp_set_gpio_mode(void)
 	if(gpio_int_hdle){
 		gpio_release(gpio_int_hdle, 2);
 	}
-	gpio_int_hdle = gpio_request_ex("ctp_para", "ctp_io_port");
+	gpio_int_hdle = gpio_request_ex(ctp_para_name, "ctp_io_port");
 	if(!gpio_int_hdle){
 		pr_info("request ctp_io_port failed. \n");
 		ret = -1;
@@ -343,20 +344,20 @@ static int ctp_init_platform_resource(void)
 		goto exit_ioremap_failed;
 	}
 	//    gpio_wakeup_enable = 1;
-	gpio_wakeup_hdle = gpio_request_ex("ctp_para", "ctp_wakeup");
+	gpio_wakeup_hdle = gpio_request_ex(ctp_para_name, "ctp_wakeup");
 	if(!gpio_wakeup_hdle) {
 		pr_warning("%s: tp_wakeup request gpio fail!\n", __func__);
 		gpio_wakeup_enable = 0;
 	}
 
-	gpio_reset_hdle = gpio_request_ex("ctp_para", "ctp_reset");
+	gpio_reset_hdle = gpio_request_ex(ctp_para_name, "ctp_reset");
 	if(!gpio_reset_hdle) {
 		pr_warning("%s: tp_reset request gpio fail!\n", __func__);
 		gpio_reset_enable = 0;
 	}
 	/* On some tables (for example: Explay informer 801) ts powered over*/
 	/* MOSFET switch, with gate connected to GPIO pin. */
-	gpio_power_hdle = gpio_request_ex("ctp_para", "ctp_power_port");
+	gpio_power_hdle = gpio_request_ex(ctp_para_name, "ctp_power_port");
 	if (!gpio_power_hdle)
 		pr_info("%s: No power port feature present.\n", __func__);
 	else {
@@ -391,17 +392,21 @@ static int ctp_fetch_sysconfig_para(void)
 
 	pr_info("%s. \n", __func__);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_used", &ctp_used, 1)){
-		pr_err("%s: script_parser_fetch err. \n", __func__);
-		goto script_parser_fetch_err;
+        if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_used", &ctp_used, 1)){
+          ctp_para_name = "ctp3_para";
+          if (SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_used", &ctp_used, 1)){
+            pr_err("%s: script_parser_fetch err. \n", __func__);
+            goto script_parser_fetch_err;
+          }
 	}
+	
 	if(1 != ctp_used){
 		pr_err("%s: ctp_unused. \n",  __func__);
 		//ret = 1;
 		return ret;
 	}
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch_ex("ctp_para", "ctp_name", (int *)(&name), &type, sizeof(name)/sizeof(int))){
+	if(SCRIPT_PARSER_OK != script_parser_fetch_ex(ctp_para_name, "ctp_name", (int *)(&name), &type, sizeof(name)/sizeof(int))){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		goto script_parser_fetch_err;
 	}
@@ -412,7 +417,7 @@ static int ctp_fetch_sysconfig_para(void)
 		return ret;
 	}
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_twi_addr", &twi_addr, sizeof(twi_addr)/sizeof(__u32))){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_twi_addr", &twi_addr, sizeof(twi_addr)/sizeof(__u32))){
 		pr_err("%s: script_parser_fetch err. \n", name);
 		goto script_parser_fetch_err;
 	}
@@ -423,37 +428,37 @@ static int ctp_fetch_sysconfig_para(void)
 	pr_info("%s: after: ctp_twi_addr is 0x%x, dirty_addr_buf: 0x%hx. dirty_addr_buf[1]: 0x%hx \n", __func__, twi_addr, u_i2c_addr.dirty_addr_buf[0], u_i2c_addr.dirty_addr_buf[1]);
 	//pr_info("%s: after: ctp_twi_addr is 0x%x, u32_dirty_addr_buf: 0x%hx. u32_dirty_addr_buf[1]: 0x%hx \n", __func__, twi_addr, u32_dirty_addr_buf[0],u32_dirty_addr_buf[1]);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_twi_id", &twi_id, sizeof(twi_id)/sizeof(__u32))){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_twi_id", &twi_id, sizeof(twi_id)/sizeof(__u32))){
 		pr_err("%s: script_parser_fetch err. \n", name);
 		goto script_parser_fetch_err;
 	}
 	pr_info("%s: ctp_twi_id is %d. \n", __func__, twi_id);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_screen_max_x", &screen_max_x, 1)){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_screen_max_x", &screen_max_x, 1)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		goto script_parser_fetch_err;
 	}
 	pr_info("%s: screen_max_x = %d. \n", __func__, screen_max_x);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_screen_max_y", &screen_max_y, 1)){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_screen_max_y", &screen_max_y, 1)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		goto script_parser_fetch_err;
 	}
 	pr_info("%s: screen_max_y = %d. \n", __func__, screen_max_y);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_revert_x_flag", &revert_x_flag, 1)){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_revert_x_flag", &revert_x_flag, 1)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		goto script_parser_fetch_err;
 	}
 	pr_info("%s: revert_x_flag = %d. \n", __func__, revert_x_flag);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_revert_y_flag", &revert_y_flag, 1)){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_revert_y_flag", &revert_y_flag, 1)){
 		pr_err("%s: script_parser_fetch err. \n", __func__);
 		goto script_parser_fetch_err;
 	}
 	pr_info("%s: revert_y_flag = %d. \n", __func__, revert_y_flag);
 
-	if(SCRIPT_PARSER_OK != script_parser_fetch("ctp_para", "ctp_exchange_x_y_flag", &exchange_x_y_flag, 1)){
+	if(SCRIPT_PARSER_OK != script_parser_fetch(ctp_para_name, "ctp_exchange_x_y_flag", &exchange_x_y_flag, 1)){
 		pr_err("ft5x_ts: script_parser_fetch err. \n");
 		goto script_parser_fetch_err;
 	}
@@ -1676,7 +1681,7 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, ft5x_ts);
 
 #ifdef TOUCH_KEY_LIGHT_SUPPORT
-	gpio_light_hdle = gpio_request_ex("ctp_para", "ctp_light");
+	gpio_light_hdle = gpio_request_ex(ctp_para_name, "ctp_light");
 #endif
 
 #ifdef CONFIG_SUPPORT_FTS_CTP_UPG
@@ -1757,7 +1762,7 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	register_early_suspend(&ft5x_ts->early_suspend);
 #endif
 
-	err = ctp_ops.set_irq_mode("ctp_para", "ctp_int_port", CTP_IRQ_MODE);
+	err = ctp_ops.set_irq_mode(ctp_para_name, "ctp_int_port", CTP_IRQ_MODE);
 	if(0 != err){
 		pr_info("%s:ctp_ops.set_irq_mode err.\n", __func__);
 		goto exit_set_irq_mode;
