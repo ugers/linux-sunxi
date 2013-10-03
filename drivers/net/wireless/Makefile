@@ -26,6 +26,9 @@ obj-$(CONFIG_RTL8180)		+= rtl818x/
 obj-$(CONFIG_RTL8187)		+= rtl818x/
 obj-$(CONFIG_RTLWIFI)		+= rtlwifi/
 obj-$(CONFIG_RTL8192CU_SW)	+= rtl8192cu/
+obj-$(CONFIG_RTL8188EU)		+= rtl8188eu/
+obj-$(CONFIG_RTL8189ES)		+= rtl8189es/
+obj-$(CONFIG_RTL8723AS)		+= rtl8723as/
 
 # 16-bit wireless PCMCIA client drivers
 obj-$(CONFIG_PCMCIA_RAYCS)	+= ray_cs.o
@@ -45,6 +48,7 @@ obj-$(CONFIG_MWL8K)	+= mwl8k.o
 obj-$(CONFIG_IWLAGN)	+= iwlwifi/
 obj-$(CONFIG_IWLWIFI_LEGACY)	+= iwlegacy/
 obj-$(CONFIG_RT2X00)	+= rt2x00/
+obj-$(CONFIG_RTXX7X_SW)	+= rtxx7x/
 
 obj-$(CONFIG_P54_COMMON)	+= p54/
 

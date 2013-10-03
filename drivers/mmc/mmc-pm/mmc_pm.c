@@ -41,12 +41,18 @@ static char* wifi_mod[] = {" ",
 							"apm6xxx", 	 /* 4 - APM6981/6658 */
 							"swb-b23",	 /* 5 - SWB-B23(BCM4329) */
 							"hw-mw269",	 /* 6 - HW-MW269X(269/269V2/269V3) */
-							"bcm40181"   /* 7 - BCM40181(BCM4330) */
+							"bcm40181",  /* 7 - BCM40181(BCM4330) */
+							"bcm40183",  /* 8 - BCM40183(BCM4330) */
+							"rtl8723as",  /* 9 - RTL8723AS(RF-SM02B) */
+							"rtl8189es"  /* 10 - RTL8189ES(SM89E00) */
 							};
+
+static int mmc_pm_get_res(void);
 
 int mmc_pm_get_mod_type(void)
 {
     struct mmc_pm_ops *ops = &mmc_card_pm_ops;
+	mmc_pm_get_res();
     if (ops->sdio_card_used)
         return ops->module_sel;
     else {
@@ -96,7 +102,8 @@ int mmc_pm_io_shd_suspend_host(void)
 {
     struct mmc_pm_ops *ops = &mmc_card_pm_ops;
     return (ops->module_sel!=2) && (ops->module_sel!=5)
-    		 && (ops->module_sel!=6) && (ops->module_sel!=7);
+    		 && (ops->module_sel!=6) && (ops->module_sel!=7
+    		 && (ops->module_sel!=8));
 }
 EXPORT_SYMBOL(mmc_pm_io_shd_suspend_host);
 
@@ -160,7 +167,7 @@ static inline void awsmc_procfs_attach(void) {}
 static inline void awsmc_procfs_remove(void) {}
 #endif
 
-static int mmc_pm_get_res(void)
+static int __mmc_pm_get_res(void)
 {
     int ret = 0;
     struct mmc_pm_ops *ops = &mmc_card_pm_ops;
@@ -198,6 +205,19 @@ static int mmc_pm_get_res(void)
     return 0;
 }
 
+static int mmc_pm_get_res(void)
+{
+	static DEFINE_MUTEX(mmc_pm_get_res_mutex);
+	static int get_res = 1;
+
+	mutex_lock(&mmc_pm_get_res_mutex);
+	if (get_res == 1)
+		get_res = __mmc_pm_get_res();
+	mutex_unlock(&mmc_pm_get_res_mutex);
+
+	return get_res;
+}
+
 static int __devinit mmc_pm_probe(struct platform_device *pdev)
 {
     struct mmc_pm_ops *ops = &mmc_card_pm_ops;
@@ -224,6 +244,15 @@ static int __devinit mmc_pm_probe(struct platform_device *pdev)
         case 7: /* BCM40181 */
             bcm40181_wifi_gpio_init();
             break;
+	case 8: /* BCM40183 */
+	    bcm40183_gpio_init();
+	    break;
+	case 9: /* rtl8723as */
+	    rtl8723as_gpio_init();
+	    break;
+	case 10: /* rtl8189es */
+	    rtl8189es_wifi_gpio_init();
+	    break;
         default:
             mmc_pm_msg("Wrong sdio module select %d !!\n", ops->module_sel);
     }
@@ -259,6 +288,15 @@ static int __devexit mmc_pm_remove(struct platform_device *pdev)
         case 7: /* BCM40181 */
             bcm40181_wifi_gpio_init();
             break;
+	case 8: /* BCM40183 */
+	    bcm40183_gpio_init();
+	    break;
+	case 9: /* rtl8723as */
+	    rtl8723as_gpio_init();
+	    break;
+	case 10: /* rtl8189es */
+	    rtl8189es_wifi_gpio_init();
+	    break;
         default:
             mmc_pm_msg("Wrong sdio module select %d !!\n", ops->module_sel);
     }
