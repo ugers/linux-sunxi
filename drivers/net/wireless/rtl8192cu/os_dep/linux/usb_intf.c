@@ -1105,7 +1105,7 @@ error_exit:
 #endif
 
 #if 1 /* Allwinnerization */
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 extern int sw_usb_disable_hcd(__u32 usbc_no);
 extern int sw_usb_enable_hcd(__u32 usbc_no);
 static int usb_wifi_host = 2;
