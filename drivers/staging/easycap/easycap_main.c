@@ -4049,11 +4049,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 					"peasycap->audio_isoc_buffer[.].pgo;\n");
 				JOM(4, "  purb->transfer_buffer_length = %i;\n",
 					peasycap->audio_isoc_buffer_size);
-#ifdef CONFIG_EASYCAP_OSS
-				JOM(4, "  purb->complete = easyoss_complete;\n");
-#else /* CONFIG_EASYCAP_OSS */
-				JOM(4, "  purb->complete = easycap_alsa_complete;\n");
-#endif /* CONFIG_EASYCAP_OSS */
 				JOM(4, "  purb->context = peasycap;\n");
 				JOM(4, "  purb->start_frame = 0;\n");
 				JOM(4, "  purb->number_of_packets = %i;\n",
@@ -4076,11 +4071,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			purb->transfer_buffer = peasycap->audio_isoc_buffer[k].pgo;
 			purb->transfer_buffer_length =
 						peasycap->audio_isoc_buffer_size;
-#ifdef CONFIG_EASYCAP_OSS
-			purb->complete = easyoss_complete;
-#else /* CONFIG_EASYCAP_OSS */
-			purb->complete = easycap_alsa_complete;
-#endif /* CONFIG_EASYCAP_OSS */
 			purb->context = peasycap;
 			purb->start_frame = 0;
 			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
@@ -4103,24 +4093,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
  *  THE AUDIO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
  */
 /*---------------------------------------------------------------------------*/
-#ifndef CONFIG_EASYCAP_OSS
-		JOM(4, "initializing ALSA card\n");
-
-		rc = easycap_alsa_probe(peasycap);
-		if (rc) {
-			err("easycap_alsa_probe() rc = %i\n", rc);
-			return -ENODEV;
-		}
-
-#else /* CONFIG_EASYCAP_OSS */
-		rc = usb_register_dev(intf, &easyoss_class);
-		if (rc) {
-			SAY("ERROR: usb_register_dev() failed\n");
-			usb_set_intfdata(intf, NULL);
-			return -ENODEV;
-		}
-		SAM("easyoss attached to minor #%d\n", intf->minor);
-#endif /* CONFIG_EASYCAP_OSS */
 
 		JOM(8, "kref_get() with %i=kref.refcount.counter\n",
 				peasycap->kref.refcount.counter);

@@ -39,6 +39,7 @@ module_param(debug, bool, 0644);
 /* Instance is currently running in hardware */
 #define TRANS_RUNNING		(1 << 1)
 
+#define TRANS_STOPPED		(1 << 2)
 
 /* Offset base for buffers on the destination queue - used to distinguish
  * between source and destination buffers when mmapping - they receive the same
@@ -97,11 +98,12 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
 
-	if (list_empty(&q_ctx->rdy_queue))
-		goto end;
+	if (list_empty(&q_ctx->rdy_queue)) {
+		spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+		return NULL;
+	}
 
 	b = list_entry(q_ctx->rdy_queue.next, struct v4l2_m2m_buffer, list);
-end:
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 	return &b->vb;
 }
@@ -117,12 +119,13 @@ void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
-	if (!list_empty(&q_ctx->rdy_queue)) {
-		b = list_entry(q_ctx->rdy_queue.next, struct v4l2_m2m_buffer,
-				list);
-		list_del(&b->list);
-		q_ctx->num_rdy--;
+	if (list_empty(&q_ctx->rdy_queue)) {
+		spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+		return NULL;
 	}
+	b = list_entry(q_ctx->rdy_queue.next, struct v4l2_m2m_buffer, list);
+	list_del(&b->list);
+	q_ctx->num_rdy--;
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 
 	return &b->vb;
