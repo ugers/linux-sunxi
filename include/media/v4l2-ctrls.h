@@ -487,11 +487,17 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
 int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
 
 /* Internal helper functions that deal with control events. */
-void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
-		struct v4l2_subscribed_event *sev);
-void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
-		struct v4l2_subscribed_event *sev);
+extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
+void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
+void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new);		
+/* Can be used as a vidioc_log_status function that just dumps all controls
+   associated with the filehandle. */
+int v4l2_ctrl_log_status(struct file *file, void *fh);
 
+/* Can be used as a vidioc_subscribe_event function that just subscribes
+   control events. */
+int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
+				struct v4l2_event_subscription *sub);
 /* Helpers for ioctl_ops. If hdl == NULL then they will all return -EINVAL. */
 int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc);
 int v4l2_querymenu(struct v4l2_ctrl_handler *hdl, struct v4l2_querymenu *qm);

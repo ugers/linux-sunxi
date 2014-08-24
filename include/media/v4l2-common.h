@@ -212,4 +212,6 @@ const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
 		const struct v4l2_discrete_probe *probe,
 		s32 width, s32 height);
 
+void v4l2_get_timestamp(struct timeval *tv);
+
 #endif /* V4L2_COMMON_H_ */

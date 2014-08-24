@@ -39,6 +39,9 @@ struct v4l2_ctrl_handler;
 #define V4L2_FL_USES_V4L2_FH	(1)
 /* Use the prio field of v4l2_fh for core priority checking */
 #define V4L2_FL_USE_FH_PRIO	(2)
+/* If ioctl core locking is in use, then apply that also to all
+   file operations. Don't use this flag in new drivers! */
+#define V4L2_FL_LOCK_ALL_FOPS	(3)
 
 /* Priority helper functions */
 
@@ -93,6 +96,9 @@ struct video_device
 
 	/* Control handler associated with this device node. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
+
+	/* vb2_queue associated with this device node. May be NULL. */
+	struct vb2_queue *queue;
 
 	/* Priority state. If NULL, then v4l2_dev->prio will be used. */
 	struct v4l2_prio_state *prio;

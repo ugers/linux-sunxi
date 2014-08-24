@@ -2348,9 +2348,13 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
 
-void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
-				struct v4l2_subscribed_event *sev)
+static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 {
+	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(sev->fh->ctrl_handler, sev->id);
+
+	if (ctrl == NULL)
+		return -EINVAL;
+
 	v4l2_ctrl_lock(ctrl);
 	list_add_tail(&sev->node, &ctrl->ev_subs);
 	if (ctrl->type != V4L2_CTRL_TYPE_CTRL_CLASS &&
@@ -2361,17 +2365,65 @@ void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
 		if (!(ctrl->flags & V4L2_CTRL_FLAG_WRITE_ONLY))
 			changes |= V4L2_EVENT_CTRL_CH_VALUE;
 		fill_event(&ev, ctrl, changes);
+		/* Mark the queue as active, allowing this initial
+		   event to be accepted. */
+		sev->elems = elems;
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
 	v4l2_ctrl_unlock(ctrl);
+	return 0;
 }
-EXPORT_SYMBOL(v4l2_ctrl_add_event);
 
-void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
-				struct v4l2_subscribed_event *sev)
+static void v4l2_ctrl_del_event(struct v4l2_subscribed_event *sev)
 {
+	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(sev->fh->ctrl_handler, sev->id);
+
 	v4l2_ctrl_lock(ctrl);
 	list_del(&sev->node);
 	v4l2_ctrl_unlock(ctrl);
 }
-EXPORT_SYMBOL(v4l2_ctrl_del_event);
+
+void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new)
+{
+	u32 old_changes = old->u.ctrl.changes;
+
+	old->u.ctrl = new->u.ctrl;
+	old->u.ctrl.changes |= old_changes;
+}
+EXPORT_SYMBOL(v4l2_ctrl_replace);
+
+void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new)
+{
+	new->u.ctrl.changes |= old->u.ctrl.changes;
+}
+EXPORT_SYMBOL(v4l2_ctrl_merge);
+
+const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops = {
+	.add = v4l2_ctrl_add_event,
+	.del = v4l2_ctrl_del_event,
+	.replace = v4l2_ctrl_replace,
+	.merge = v4l2_ctrl_merge,
+};
+EXPORT_SYMBOL(v4l2_ctrl_sub_ev_ops);
+
+int v4l2_ctrl_log_status(struct file *file, void *fh)
+{
+	struct video_device *vfd = video_devdata(file);
+	struct v4l2_fh *vfh = file->private_data;
+
+	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags) && vfd->v4l2_dev)
+		v4l2_ctrl_handler_log_status(vfh->ctrl_handler,
+			vfd->v4l2_dev->name);
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_ctrl_log_status);
+
+int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
+				struct v4l2_event_subscription *sub)
+{
+	if (sub->type == V4L2_EVENT_CTRL)
+		return v4l2_event_subscribe(fh, sub, 0, &v4l2_ctrl_sub_ev_ops);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(v4l2_ctrl_subscribe_event);
+
