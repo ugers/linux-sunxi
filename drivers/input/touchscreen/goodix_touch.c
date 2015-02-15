@@ -209,6 +209,9 @@ static int ctp_set_irq_mode(char *major_key , char *subkey, ext_int_mode int_mod
 		ret = -1;
 		goto request_tp_int_port_failed;
 	}
+	gpio_get_one_pin_status(gpio_int_hdle, gpio_int_info, subkey, 1);
+	pr_info("%s, %d: gpio_int_info, port = %d, port_num = %d. \n", __func__, __LINE__, \
+		gpio_int_info[0].port, gpio_int_info[0].port_num);
 #endif
 
 #ifdef AW_GPIO_INT_API_ENABLE
