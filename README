@@ -1,3 +1,15 @@
+BUILDING THE KERNEL
+
+1. git clone https://github.com/ugers/linux-sunxi.git
+2. cd linux-allwinner
+3. scripts/build_sun4i_crane.sh kernel
+
+The kernel will be found on the output folder.
+
+To copy it into the CM11.0 source folder
+cp output/bImage ../device/softwinner/907/kernel
+cp output/lib/modules/3.0.99+/*.ko ../device/softwinner/907/prebuilt/lib/modules
+
 	Linux kernel release 3.x <http://kernel.org/>
 
 These are the release notes for Linux version 3.  Read them carefully,
