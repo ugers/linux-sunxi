@@ -150,7 +150,7 @@ static __mclk_set_inf  MCLK_INF[] =
 
     //22.05k bitrate
     { 22050, 128,  8, 1}, { 22050, 256,  4, 1},
-    { 22050, 512,  2, 1},
+    { 22050, 512,  2, 1}, 
 
     //44.1k bitrate
     { 44100, 128,  4, 1}, { 44100, 256,  2, 1}, { 44100, 512,  1, 1},
@@ -165,16 +165,16 @@ static __mclk_set_inf  MCLK_INF[] =
     {0xffffffff, 0, 0, 0},
 };
 
-static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div,
+static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, 
                             u32* mpll, u32* bclk_div, u32* mult_fs)
 {
 	u32 i, j, ret = -EINVAL;
 
 	for(i=0; i< 100; i++) {
-		 if((MCLK_INF[i].samp_rate == sample_rate) &&
+		 if((MCLK_INF[i].samp_rate == sample_rate) && 
 		 	((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128))) {
 			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++) {
-					if((BCLK_INF[j].bitpersamp == sample_width) &&
+					if((BCLK_INF[j].bitpersamp == sample_width) && 
 						(BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs)) {
 						 //set mclk and bclk division
 						 *mclk_div = MCLK_INF[i].clk_div;
@@ -200,10 +200,10 @@ static int sun4i_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret = 0;
 	unsigned long rate = params_rate(params);
-	u32 mclk_div=0, mpll=0, bclk_div=0, mult_fs=0;
+	u32 mclk_div=0, mpll=0, bclk_div=0, mult_fs=0;	
 
 	get_clock_divder(rate, 32, &mclk_div, &mpll, &bclk_div, &mult_fs);
-
+	
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
@@ -217,19 +217,19 @@ static int sun4i_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0 , mpll, 0);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0 , mpll, 0);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_MCLK, mclk_div);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_BCLK, bclk_div);
 	if (ret < 0)
 		return ret;
-
+		
 	ret = snd_soc_dai_set_clkdiv(codec_dai, 0, mult_fs);
 	if (ret < 0)
 		return ret;
@@ -255,40 +255,35 @@ static struct snd_soc_dai_link sun4i_sndhdmi_dai_link = {
 
 static struct snd_soc_card snd_soc_sun4i_sndhdmi = {
 	.name 		= "sun4i-sndhdmi",
-	.owner		= THIS_MODULE,
 	.dai_link 	= &sun4i_sndhdmi_dai_link,
 	.num_links 	= 1,
 };
 
-static int __devinit sun4i_sndhdmi_probe(struct platform_device *pdev)
-{
-	snd_soc_sun4i_sndhdmi.dev = &pdev->dev;
-	return snd_soc_register_card(&snd_soc_sun4i_sndhdmi);
-}
-
-static int __devexit sun4i_sndhdmi_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&snd_soc_sun4i_sndhdmi);
-	return 0;
-}
-
-static struct platform_driver sun4i_sndhdmi_driver = {
-	.probe = sun4i_sndhdmi_probe,
-	.remove = __devexit_p(sun4i_sndhdmi_remove),
-	.driver = {
-		.name = "sun4i-sndhdmi",
-		.owner = THIS_MODULE,
-	},
-};
+static struct platform_device *sun4i_sndhdmi_device;
 
 static int __init sun4i_sndhdmi_init(void)
 {
-	return platform_driver_register(&sun4i_sndhdmi_driver);
+	int ret;
+
+	sun4i_sndhdmi_device = platform_device_alloc("soc-audio", 0);
+		
+	if(!sun4i_sndhdmi_device)
+		return -ENOMEM;
+			
+	platform_set_drvdata(sun4i_sndhdmi_device, &snd_soc_sun4i_sndhdmi);
+		
+	ret = platform_device_add(sun4i_sndhdmi_device);		
+		
+	if (ret) {			
+		platform_device_put(sun4i_sndhdmi_device);
+	}
+
+	return ret;
 }
 
 static void __exit sun4i_sndhdmi_exit(void)
 {
-	platform_driver_unregister(&sun4i_sndhdmi_driver);
+	platform_device_unregister(sun4i_sndhdmi_device);
 }
 
 module_init(sun4i_sndhdmi_init);

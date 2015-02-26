@@ -595,6 +595,34 @@ dm_initial_gain_Multi_STA(
 	//			DM_DigTable.CurMultiSTAConnectState, DM_DigTable.Dig_Ext_Port_Stage));
 }
 
+static VOID 
+dm_initial_gain_STA_beforelinked(
+	IN	PADAPTER	pAdapter)
+{
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
+	PFALSE_ALARM_STATISTICS pFalseAlmCnt = &(pdmpriv->FalseAlmCnt);
+	
+	//CurrentIGI = pDM_DigTable->rx_gain_range_min;//pDM_DigTable->CurIGValue = pDM_DigTable->rx_gain_range_min
+	//ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): DIG BeforeLink\n"));
+	//2012.03.30 LukeLee: enable DIG before link but with very high thresholds
+      	if(pFalseAlmCnt->Cnt_all > 10000)
+		pDigTable->CurIGValue = pDigTable->CurIGValue + 2;//pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2;
+	else if (pFalseAlmCnt->Cnt_all > 8000)
+		pDigTable->CurIGValue = pDigTable->CurIGValue + 1;//pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1;
+	else if(pFalseAlmCnt->Cnt_all < 500)
+		 pDigTable->CurIGValue = pDigTable->CurIGValue - 1;//pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; 
+
+	//Check initial gain by upper/lower bound
+	if(pDigTable->CurIGValue >pDigTable->rx_gain_range_max)
+		pDigTable->CurIGValue = pDigTable->rx_gain_range_max;
+
+	if(pDigTable->CurIGValue < pDigTable->rx_gain_range_min)
+		pDigTable->CurIGValue = pDigTable->rx_gain_range_min;
+	
+	printk("%s ==> FalseAlmCnt->Cnt_all:%d CurIGValue:0x%02x \n",__FUNCTION__,pFalseAlmCnt->Cnt_all ,pDigTable->CurIGValue);		 
+}
 
 static VOID 
 dm_initial_gain_STA(
@@ -619,7 +647,21 @@ dm_initial_gain_STA(
 		{
 			pDigTable->Rssi_val_min = dm_initial_gain_MinPWDB(pAdapter);
 			dm_CtrlInitGainByRssi(pAdapter);
-		}	
+		}
+#ifdef CONFIG_IOCTL_CFG80211
+		else if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE)
+		{
+			pDigTable->CurIGValue = 0x30;
+			DM_Write_DIG(pAdapter);
+		}
+#endif		
+		else{ // pDigTable->CurSTAConnectState == DIG_STA_DISCONNECT 
+		#ifdef CONFIG_BEFORE_LINKED_DIG
+			//printk("%s==> ##1 CurIGI(0x%02x),PreIGValue(0x%02x) \n",__FUNCTION__,pDigTable->CurIGValue,pDigTable->PreIGValue );
+			dm_initial_gain_STA_beforelinked(pAdapter);
+			DM_Write_DIG(pAdapter);
+		#endif
+		}
 	}
 	else	
 	{		
@@ -629,6 +671,12 @@ dm_initial_gain_STA(
 		pDigTable->BackoffVal = DM_DIG_BACKOFF_DEFAULT;
 		pDigTable->CurIGValue = 0x20;
 		pDigTable->PreIGValue = 0;	
+
+		#ifdef CONFIG_BEFORE_LINKED_DIG			
+		//printk("%s==> ##2 CurIGI(0x%02x),PreIGValue(0x%02x) \n",__FUNCTION__,pDigTable->CurIGValue,pDigTable->PreIGValue );	
+		dm_initial_gain_STA_beforelinked(pAdapter);			 
+ 		#endif
+
 		DM_Write_DIG(pAdapter);
 	}
 
@@ -1182,6 +1230,8 @@ dm_CheckEdcaTurbo(
 				edca_param = 0x6ea42b;
 			}
 #endif
+			if(Adapter->registrypriv.intel_class_mode==1)
+				edca_param=0xa44f;
 			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
 
 			pdmpriv->prv_traffic_idx = trafficIndex;
@@ -3591,7 +3641,9 @@ rtl8192c_dm_RF_Saving(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PS_T	*pPSTable = &pdmpriv->DM_PSTable;
-
+	
+	if(pAdapter->registrypriv.intel_class_mode==1)
+		return;
 	if(pdmpriv->initialize == 0){
 		pdmpriv->rf_saving_Reg874 = (PHY_QueryBBReg(pAdapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord)&0x1CC000)>>14;
 		pdmpriv->rf_saving_RegC70 = (PHY_QueryBBReg(pAdapter, rOFDM0_AGCParameter1, bMaskDWord)&BIT3)>>3;
@@ -4549,7 +4601,51 @@ rtl8192c_InitHalDm(
 		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 	}
 }
+VOID
+rtl8192c_HalDmPollingC2HEvt(
+	IN	PADAPTER	padapter
+	)
+{
+	u8 trigger=0,evt_id=0,evt_len=0,idx=0,tmp8=0,evt_seq=0;
+	u8 evt_buf[15];
 
+	trigger=rtw_read8(padapter,REG_C2HEVT_CLEAR);
+	while (trigger ==0xFF)
+	{
+		tmp8=rtw_read8(padapter,REG_C2HEVT_MSG_NORMAL);
+		evt_id=tmp8&0xf;
+		evt_len=(tmp8&0xf0)>>4;
+		evt_seq=rtw_read8(padapter,REG_C2HEVT_MSG_NORMAL+1);
+		DBG_8192C(" %s evt_id =0x%x evt_len=0x%x evt_seq=0x%x\n",__FUNCTION__,evt_id,evt_len,evt_seq);
+		for(idx=0;idx<evt_len;idx++){
+			evt_buf[idx]=rtw_read8(padapter,(REG_C2HEVT_MSG_NORMAL+2+idx));
+		}
+		switch(evt_id){
+			case EVT_EXT_RA_RPT_EID:
+				DBG_8192C(" %s EVT_EXT_RA_RPT_EID[0x%x] evt_len=0x%x\n",__FUNCTION__,evt_id,evt_len);
+				{
+					u8 mac_id=evt_buf[0],num_sta=evt_len-1;
+					struct sta_priv *pstapriv=&padapter->stapriv;
+					struct sta_info *psta=NULL;
+					DBG_8192C(" %s mac_id=%d\n",__FUNCTION__,mac_id);
+					for(idx=0;idx<num_sta;idx++){
+						psta=pstapriv->sta_aid[mac_id-2+idx];
+						if(psta !=NULL){
+							psta->init_rate=evt_buf[idx];
+							DBG_8192C(" %s mac_id=%d psta->init_rate=0x%x\n",__FUNCTION__,mac_id,psta->init_rate);
+						}	
+					}
+						
+				}
+			default:
+				DBG_8192C(" %s evt_id =0x%x evt_len=0x%x\n",__FUNCTION__,evt_id,evt_len);
+		}
+		rtw_write8(padapter, REG_C2HEVT_CLEAR,0x0);
+		rtw_mdelay_os(1);
+		trigger=rtw_read8(padapter,REG_C2HEVT_CLEAR);
+	}
+	//DBG_8192C(" %s End\n",__FUNCTION__);
+}
 VOID
 rtl8192c_HalDmWatchDog(
 	IN	PADAPTER	Adapter
@@ -4661,6 +4757,9 @@ rtl8192c_HalDmWatchDog(
 		//	PlatformScheduleWorkItem(&(GET_HAL_DATA(Adapter)->HalResetWorkItem));
 #endif
 
+#ifdef SUPPORT_64_STA
+		rtl8192c_HalDmPollingC2HEvt(Adapter);
+#endif //SUPPORT_64_STA
 		// Read REG_INIDATA_RATE_SEL value for TXDESC.
 		if(check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE) == _TRUE)
 		{
@@ -4669,7 +4768,7 @@ rtl8192c_HalDmWatchDog(
 		else
 		{
 			u8	i;
-			for(i=1 ; i < (Adapter->stapriv.asoc_sta_count + 1); i++)
+			for(i=1 ;( i < (Adapter->stapriv.asoc_sta_count + 1))&&(i <FW_CTRL_MACID ); i++)
 			{
 				pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
 			}
