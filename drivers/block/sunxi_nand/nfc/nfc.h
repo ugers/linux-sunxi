@@ -21,10 +21,10 @@
  */
 
 #ifndef _NFC_H_
-#define _NFC_H_                   
+#define _NFC_H_
 
-#include <mach/platform.h>  
-                                                    
+#include <mach/platform.h>
+
 #define NAND_IO_BASE		SW_VA_NANDFLASHC_IO_BASE
 #define __NFC_REG(x)    (*(volatile unsigned int   *)(NAND_IO_BASE + x))
 /*
@@ -53,7 +53,7 @@
 #define NFC_REG_o_ECC_CNT1         0x0044
 #define NFC_REG_o_ECC_CNT2         0x0048
 #define NFC_REG_o_ECC_CNT3         0x004c
-#define NFC_REG_o_USER_DATA_BASE   0x0050    
+#define NFC_REG_o_USER_DATA_BASE   0x0050
 #define NFC_REG_o_SPARE_AREA       0x00A0
 #define NFC_o_RAM0_BASE            0x0400
 #define NFC_o_RAM1_BASE            0x0800
@@ -172,18 +172,18 @@
 
 typedef struct cmd_list{
 	struct	cmd_list *next;
-	__u8	*addr;	
-	__u8	addr_cycle;	
+	__u8	*addr;
+	__u8	addr_cycle;
 	__u8	data_fetch_flag;
 	__u8	main_data_fetch;
-	__u8	wait_rb_flag;	
+	__u8	wait_rb_flag;
 	__u32 	bytecnt;
-	__u32	value;	
+	__u32	value;
 }NFC_CMD_LIST;
 
-typedef struct NFC_init_info{   
+typedef struct NFC_init_info{
 	__u8	bus_width;// bus width 8 bit
-	__u8	rb_sel; // ready busy 
+	__u8	rb_sel; // ready busy
 	__u8	ce_ctl; // chip select
 	__u8	ce_ctl1;
 	__u8	pagesize; // 1024 ,2048 ,
@@ -194,6 +194,8 @@ typedef struct NFC_init_info{
 
 __s32 NFC_ReadRetryInit(__u32 read_retry_type);
 __s32 NFC_ReadRetryExit(__u32 read_retry_type);
+__s32 NFC_ReadRetry_off(__u32 chip); //sandisk readretry exit
+void NFC_GetOTPValue(__u32 chip, __u8* otp_value, __u32 read_retry_type);
 __s32 NFC_GetDefaultParam(__u32 chip, __u8 *defautl_value, __u32 read_retry_type);
 __s32 NFC_SetDefaultParam(__u32 chip, __u8 *defautl_value, __u32 read_retry_type);
 __s32 NFC_ReadRetry(__u32 chip, __u32 retry_count, __u32 read_retry_type);

@@ -31,19 +31,19 @@ static __u32        clk_adjust_lock;
 
 __s32 NAND_SetClk(__u32 nand_clk)
 {
-	
+
 //	__u32 ahb_clk, cmu_clk;
-//	__u32 edo_clk;	
+//	__u32 edo_clk;
 //	__u32 nand_clk_divid_ratio;
 //
 //	/*get cmu clk and ahb clk*/
 //	cmu_clk = 270 * 1000000;
 //	//ahb_clk = esCLK_GetSrcFreq(CCMU_SCLK_AHBCLK);
 //	ahb_clk = 120*1000000;
-//	
+//
 //	/*configure nand clock divid ratio*/
-//	edo_clk = nand_clk * 2 * 1000000;	
-//	nand_clk_divid_ratio = vedio_clk/ edo_clk;		
+//	edo_clk = nand_clk * 2 * 1000000;
+//	nand_clk_divid_ratio = vedio_clk/ edo_clk;
 //	if (nand_clk_divid_ratio){
 //		if (vedio_clk % edo_clk)
 //			nand_clk_divid_ratio++;

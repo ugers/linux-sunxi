@@ -24,7 +24,7 @@
 #define	_NFC_I_H_
 
 #include "../include/type_def.h"
-#include "nfc.h"              
+#include "nfc.h"
 //#include "../nfd/dma_for_nand.h"
 //#include "ebios_i.h"
 //#define MAX_ECC_BIT_CNT	8
@@ -37,7 +37,7 @@
 #define ECC_LIMIT 	10
 #define ERR_TIMEOUT 14
 #define READ_RETRY_MAX_TYPE_NUM 5
-#define READ_RETRY_MAX_REG_NUM	4
+#define READ_RETRY_MAX_REG_NUM	16
 #define READ_RETRY_MAX_CYCLE	10
 #define LSB_MODE_MAX_REG_NUM	8
 /* define various unit data input or output*/
@@ -58,19 +58,13 @@
 
 extern __hdle NAND_RequestDMA(__u32 dmatype);
 extern __s32 NAND_ReleaseDMA(__hdle hDma);
-extern __s32 NAND_QueryDmaStat(__hdle hDma);
-extern __s32 NAND_SettingDMA(__hdle hDMA, void * pArg);
-extern __s32 NAND_StartDMA(__u8 rw,__hdle hDMA, __u32 saddr, __u32 daddr, __u32 bytes);
-extern __s32 NAND_GetPin(void);
-extern __s32 NAND_ReleasePin(void);
-extern __u32 NAND_GetBoardVersion(void);
+extern void NAND_Config_Start_DMA(__u8 rw, dma_addr_t buff_addr, __u32 len);
 extern __s32 NAND_WaitDmaFinish(void);
-extern __s32 NAND_DMAEqueueBuf(__hdle hDma,  __u32 buff_addr, __u32 len);
 extern void NAND_ClearRbInt(void);
 extern void NAND_EnRbInt(void);
 
 extern void NAND_RbInterrupt(void);
 extern __s32 NAND_WaitRbReady(void);
 
-#endif	/* _NFC_I_H_ */
 
+#endif	/* _NFC_I_H_ */

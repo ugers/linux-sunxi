@@ -35,6 +35,7 @@ extern struct __NandPhyInfoPar_t StNandTbl;
 extern struct __NandPhyInfoPar_t DefaultNandTbl;
 extern struct __NandPhyInfoPar_t SpansionNandTbl;
 extern struct __NandPhyInfoPar_t PowerNandTbl;
+extern struct __NandPhyInfoPar_t SandiskNandTbl;
 
 __s32 NAND_Detect(boot_nand_para_t *nand_connect);
 
@@ -57,7 +58,7 @@ __s32 NAND_Detect(boot_nand_para_t *nand_connect);
 __s32 _SearchNandArchi(__u8 *pNandID, struct __NandPhyInfoPar_t *pNandArchInfo)
 {
     __s32 i=0, j=0, k=0;
-    __u32 id_match_tbl[3]={0xffff, 0xffff, 0xffff};  
+    __u32 id_match_tbl[3]={0xffff, 0xffff, 0xffff};
     __u32 id_bcnt;
     struct __NandPhyInfoPar_t *tmpNandManu;
 
@@ -98,12 +99,17 @@ __s32 _SearchNandArchi(__u8 *pNandID, struct __NandPhyInfoPar_t *pNandArchInfo)
         case SPANSION_NAND:
             tmpNandManu = &SpansionNandTbl;
             break;
-            
+
        //manufacture is power, search parameter from Spansion nand table
         case POWER_NAND:
             tmpNandManu = &PowerNandTbl;
-            break;     
-            
+            break;
+
+	   //manufacture is sandisk, search parameter from sandisk nand table
+        case SANDISK:
+            tmpNandManu = &SandiskNandTbl;
+            break;
+
         //manufacture is unknown, search parameter from default nand table
         default:
             tmpNandManu = &DefaultNandTbl;
@@ -114,35 +120,35 @@ __s32 _SearchNandArchi(__u8 *pNandID, struct __NandPhyInfoPar_t *pNandArchInfo)
     while(tmpNandManu[i].NandID[0] != 0xff)
     {
         //compare 6 byte id
-        id_bcnt = 1; 
+        id_bcnt = 1;
         for(j=1; j<6; j++)
         {
             //0xff is matching all ID value
             if((pNandID[j] != tmpNandManu[i].NandID[j]) && (tmpNandManu[i].NandID[j] != 0xff))
             break;
-            
+
             if(tmpNandManu[i].NandID[j] != 0xff)
                 id_bcnt++;
         }
-        
+
         if(j == 6)
         {
              /*4 bytes of the nand chip ID are all matching, search parameter successful*/
             if(id_bcnt == 4)
                 id_match_tbl[0] = i;
             else if(id_bcnt == 5)
-                id_match_tbl[1] = i; 
-            else if(id_bcnt == 6)   
+                id_match_tbl[1] = i;
+            else if(id_bcnt == 6)
                 id_match_tbl[2] = i;
         }
-        
+
         //prepare to search the next table item
         i++;
     }
-    
+
     for(k=2; k>=0;k--)
     {
-        
+
         if(id_match_tbl[k]!=0xffff)
         {
             i= id_match_tbl[k];
@@ -280,7 +286,7 @@ __s32  SCN_AnalyzeNandSystem(void)
     {
         NandStorageInfo.OperationOpt &= ~NAND_READ_RETRY;
     }
-    
+
     if(!CFG_SUPPORT_ALIGN_NAND_BNK)
     {
         NandStorageInfo.OperationOpt |= NAND_PAGE_ADR_NO_SKIP;
@@ -296,19 +302,19 @@ __s32  SCN_AnalyzeNandSystem(void)
     {
         NandStorageInfo.BankCntPerChip = 1;
     }
-  
+
      //process the rb connect infomation
     for(i=1; i<MAX_CHIP_SELECT_CNT; i++)
     {
         //reset current nand flash chip
         PHY_ResetChip((__u32)i);
-    
+
         //read the nand chip ID from current nand flash chip
         PHY_ReadNandId((__u32)i, tmpChipID);
         //check if the nand flash id same as the boot chip
         if((tmpChipID[0] == NandStorageInfo.NandChipId[0]) && (tmpChipID[1] == NandStorageInfo.NandChipId[1])
             && (tmpChipID[2] == NandStorageInfo.NandChipId[2]) && (tmpChipID[3] == NandStorageInfo.NandChipId[3])
-            && ((tmpChipID[4] == NandStorageInfo.NandChipId[4])||(NandStorageInfo.NandChipId[4]==0xff)) 
+            && ((tmpChipID[4] == NandStorageInfo.NandChipId[4])||(NandStorageInfo.NandChipId[4]==0xff))
             && ((tmpChipID[5] == NandStorageInfo.NandChipId[5])||(NandStorageInfo.NandChipId[5]==0xff)))
         {
             NandStorageInfo.ChipCnt++;
@@ -319,46 +325,46 @@ __s32  SCN_AnalyzeNandSystem(void)
     //process the rb connect infomation
     {
         NandStorageInfo.RbConnectMode = 0xff;
-		
+
         if((NandStorageInfo.ChipCnt == 1) && (NandStorageInfo.ChipConnectInfo & (1<<0)))
         {
              NandStorageInfo.RbConnectMode =1;
-        }	     
+        }
         else if(NandStorageInfo.ChipCnt == 2)
         {
     	      if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<1)))
-		    NandStorageInfo.RbConnectMode =2; 
+		    NandStorageInfo.RbConnectMode =2;
 	      else if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<2)))
-		    NandStorageInfo.RbConnectMode =3; 	
+		    NandStorageInfo.RbConnectMode =3;
 		else if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<7)))
-		    NandStorageInfo.RbConnectMode =0; 	//special use, only one rb 
-		  
+		    NandStorageInfo.RbConnectMode =0; 	//special use, only one rb
+
         }
-		
+
         else if(NandStorageInfo.ChipCnt == 4)
         {
-    	      if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<1)) 
+    	      if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<1))
 			  	&&  (NandStorageInfo.ChipConnectInfo & (1<<2)) &&  (NandStorageInfo.ChipConnectInfo & (1<<3)) )
-		    NandStorageInfo.RbConnectMode =4; 
-	      else if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<2)) 
+		    NandStorageInfo.RbConnectMode =4;
+	      else if((NandStorageInfo.ChipConnectInfo & (1<<0)) && (NandStorageInfo.ChipConnectInfo & (1<<2))
 			  	&&  (NandStorageInfo.ChipConnectInfo & (1<<4)) &&  (NandStorageInfo.ChipConnectInfo & (1<<6)) )
-		    NandStorageInfo.RbConnectMode =5; 			
+		    NandStorageInfo.RbConnectMode =5;
         }
         else if(NandStorageInfo.ChipCnt == 8)
         {
-	      NandStorageInfo.RbConnectMode =8; 			
+	      NandStorageInfo.RbConnectMode =8;
         }
-		
+
 		if( NandStorageInfo.RbConnectMode == 0xff)
-            {   
+            {
         	    SCAN_ERR("%s : check nand rb connect fail, ChipCnt =  %x, ChipConnectInfo = %x \n",__FUNCTION__, NandStorageInfo.ChipCnt, NandStorageInfo.ChipConnectInfo);
         	    return -1;
 		}
 
-	 
+
     }
 
-	
+
     //process the external inter-leave operation
     if(CFG_SUPPORT_EXT_INTERLEAVE)
     {
@@ -388,12 +394,14 @@ __s32  SCN_AnalyzeNandSystem(void)
 		nand_info.ce_ctl = 0x0;
 		nand_info.ce_ctl1 = 0x0;
 		nand_info.debug = 0x0;
-		nand_info.pagesize = SECTOR_CNT_OF_SINGLE_PAGE;	
+		nand_info.pagesize = SECTOR_CNT_OF_SINGLE_PAGE;
 		nand_info.rb_sel = 1;
 		nand_info.serial_access_mode = 1;
 		nand_info.ddr_type = DDR_TYPE;
 		NFC_ChangMode(&nand_info);
 	}
+
+	PHY_ChangeMode(1);
 
 	if(SUPPORT_READ_RETRY)
 	{
@@ -411,7 +419,7 @@ __s32  SCN_AnalyzeNandSystem(void)
     SCAN_DBG("[SCAN_DBG] ==============Nand Architecture Parameter==============\n");
     SCAN_DBG("[SCAN_DBG]    Nand Chip ID:         0x%x 0x%x\n",
         (NandStorageInfo.NandChipId[0] << 0) | (NandStorageInfo.NandChipId[1] << 8)
-        | (NandStorageInfo.NandChipId[2] << 16) | (NandStorageInfo.NandChipId[3] << 24), 
+        | (NandStorageInfo.NandChipId[2] << 16) | (NandStorageInfo.NandChipId[3] << 24),
         (NandStorageInfo.NandChipId[4] << 0) | (NandStorageInfo.NandChipId[5] << 8)
         | (NandStorageInfo.NandChipId[6] << 16) | (NandStorageInfo.NandChipId[7] << 24));
     SCAN_DBG("[SCAN_DBG]    Nand Chip Count:      0x%x\n", NandStorageInfo.ChipCnt);
