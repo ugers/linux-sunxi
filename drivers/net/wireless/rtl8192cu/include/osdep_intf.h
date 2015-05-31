@@ -25,9 +25,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0: 1)) << 2)
-
-
 struct intf_priv {
 	
 	u8 *intf_dev;
@@ -110,12 +107,23 @@ int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname);
 struct net_device *rtw_init_netdev(_adapter *padapter);
 
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+u16 rtw_recv_select_queue(struct sk_buff *skb);
+#endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
+
 #ifdef CONFIG_PROC_DEBUG
 void rtw_proc_init_one(struct net_device *dev);
 void rtw_proc_remove_one(struct net_device *dev);
-#endif
-#endif
+#else //!CONFIG_PROC_DEBUG
+static void rtw_proc_init_one(struct net_device *dev){}
+static void rtw_proc_remove_one(struct net_device *dev){}
+#endif //!CONFIG_PROC_DEBUG
+#endif //PLATFORM_LINUX
 
+
+#ifdef PLATFORM_FREEBSD
+extern int rtw_ioctl(struct ifnet * ifp, u_long cmd, caddr_t data);
+#endif
 
 void rtw_ips_dev_unload(_adapter *padapter);
 #ifdef CONFIG_IPS
@@ -123,6 +131,11 @@ int rtw_ips_pwr_up(_adapter *padapter);
 void rtw_ips_pwr_down(_adapter *padapter);
 #endif
 
+#ifdef CONFIG_CONCURRENT_MODE
+struct _io_ops;
+_adapter *rtw_drv_if2_init(_adapter *primary_padapter, char *name, void (*set_intf_ops)(struct _io_ops *pops));
+void rtw_drv_if2_free(_adapter *pbuddy_padapter);
+#endif
 
 #endif	//_OSDEP_INTF_H_
 

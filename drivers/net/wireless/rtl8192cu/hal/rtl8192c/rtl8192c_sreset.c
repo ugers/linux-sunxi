@@ -16,34 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #include <rtl8192c_sreset.h>
 #include <rtl8192c_hal.h>
 #ifdef DBG_CONFIG_ERROR_DETECT
 extern void rtw_cancel_all_timer(_adapter *padapter);
-
-void rtl8192c_sreset_init_value(_adapter *padapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);	
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-	
-	_rtw_mutex_init(&psrtpriv->silentreset_mutex );
-	psrtpriv->silent_reset_inprogress = _FALSE;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time =0;
-	psrtpriv->last_tx_complete_time =0;	
-}
-void rtl8192c_sreset_reset_value(_adapter *padapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);	
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;	
-	psrtpriv->silent_reset_inprogress = _FALSE;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-	psrtpriv->last_tx_time =0;
-	psrtpriv->last_tx_complete_time =0;
-}
-	
 static void _restore_security_setting(_adapter *padapter)
 {
 	u8 EntryId = 0;
@@ -102,17 +79,14 @@ static void _restore_network_status(_adapter *padapter)
 	// reset related register of Beacon control 
 	
 	//set MSR to nolink		
-	Set_NETYPE0_MSR(padapter, _HW_STATE_NOLINK_);		
+	Set_MSR(padapter, _HW_STATE_NOLINK_);		
 	// reject all data frame
 	rtw_write16(padapter, REG_RXFLTMAP2,0x00);		
 	//reset TSF
 	rtw_write8(padapter, REG_DUAL_TSF_RST, (BIT(0)|BIT(1)));
 
 	//disable update TSF
-	if(IS_NORMAL_CHIP(pHalData->VersionID))
-		rtw_write8(padapter, REG_BCN_CTRL, rtw_read8(padapter, REG_BCN_CTRL)|BIT(4));		
-	else	
-		rtw_write8(padapter, REG_BCN_CTRL, rtw_read8(padapter, REG_BCN_CTRL)|BIT(4)|BIT(5));					
+	rtw_write8(padapter, REG_BCN_CTRL, rtw_read8(padapter, REG_BCN_CTRL)|BIT(4));
 
 	//=======================================================
 	rtw_joinbss_reset(padapter);
@@ -145,7 +119,7 @@ static void _restore_network_status(_adapter *padapter)
 	join_type = 0;
 	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
 
-	Set_NETYPE0_MSR(padapter, (pmlmeinfo->state & 0x3));
+	Set_MSR(padapter, (pmlmeinfo->state & 0x3));
 
 	mlmeext_joinbss_event_callback(padapter, 1);
 	//restore Sequence No.
@@ -167,8 +141,8 @@ void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
 
 	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 
-	if (!netif_queue_stopped(padapter->pnetdev))
-		netif_stop_queue(padapter->pnetdev);
+	if (!rtw_netif_queue_stopped(padapter->pnetdev))
+		rtw_netif_stop_queue(padapter->pnetdev);
 		
 	rtw_cancel_all_timer(padapter);	
 	tasklet_kill(&pxmitpriv->xmit_tasklet);	
@@ -253,41 +227,5 @@ void rtl8192c_sreset_linked_status_check(_adapter *padapter)
 		rtl8192c_silentreset_for_specific_platform(padapter);	
 	}
 }
-
-#ifdef DBG_CONFIG_ERROR_DETECT
-u8 rtl8192c_sreset_get_wifi_status(_adapter *padapter)	
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);	
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;	
-	
-	u8 status = WIFI_STATUS_SUCCESS;
-	u32 val32 = 0;
-	_irqL irqL;	
-	if(psrtpriv->silent_reset_inprogress == _TRUE)
-        {
-		return status;
-	}
-	val32 =rtw_read32(padapter,REG_TXDMA_STATUS);
-	if(val32==0xeaeaeaea){
-		psrtpriv->Wifi_Error_Status = WIFI_IF_NOT_EXIST;
-	}
-	else if(val32!=0){
-		DBG_8192C("txdmastatu(%x)\n",val32);
-		psrtpriv->Wifi_Error_Status = WIFI_MAC_TXDMA_ERROR;
-	}	
-
-	if(WIFI_STATUS_SUCCESS !=psrtpriv->Wifi_Error_Status)
-	{
-		DBG_8192C("==>%s error_status(0x%x) \n",__FUNCTION__,psrtpriv->Wifi_Error_Status);
-		status = (psrtpriv->Wifi_Error_Status &( ~(USB_READ_PORT_FAIL|USB_WRITE_PORT_FAIL)));
-	}
-	DBG_8192C("==> %s wifi_status(0x%x)\n",__FUNCTION__,status);
-
-	//status restore 
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-
-	return status;
-}
 #endif
 
-#endif

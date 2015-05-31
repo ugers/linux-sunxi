@@ -71,7 +71,11 @@ const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 	"MACADDR",
 
 	"BLOCK",
-
+	"WFD-ENABLE",
+	"WFD-DISABLE",
+	"WFD-SET-TCPPORT",
+	"WFD-SET-MAXTPUT",
+	"WFD-SET-DEVTYPE",	
 };
 
 #ifdef PNO_SUPPORT
@@ -251,7 +255,7 @@ int rtw_android_get_link_speed(struct net_device *net, char *command, int total_
 	int bytes_written = 0;
 	u16 link_speed = 0;
 
-	link_speed = rtw_get_network_max_rate(padapter, &pcur_network->network);	
+	link_speed = rtw_get_cur_max_rate(padapter)/10;
 	bytes_written = snprintf(command, total_len, "LinkSpeed %d", link_speed);
 
 	return bytes_written;
@@ -300,6 +304,22 @@ int rtw_android_set_block(struct net_device *net, char *command, int total_len)
 	#endif
 	
 	return 0;
+}
+
+int get_int_from_command( char* pcmd )
+{
+	int i = 0;
+
+	for( i = 0; i < strlen( pcmd ); i++ )
+	{
+		if ( pcmd[ i ] == '=' )
+		{
+			//	Skip the '=' and space characters.
+			i += 2;
+			break;
+		}
+	}
+	return ( rtw_atoi( pcmd + i ) );
 }
 
 int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
@@ -359,10 +379,15 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		break;
 		
 	case ANDROID_WIFI_CMD_SCAN_ACTIVE:
-		rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_ACTIVE);
+		//rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_ACTIVE);
+#ifdef CONFIG_PLATFORM_MSTAR_TITANIA12		
+#ifdef CONFIG_IOCTL_CFG80211
+		(wdev_to_priv(net->ieee80211_ptr))->bandroid_scan = _TRUE;	
+#endif //CONFIG_IOCTL_CFG80211
+#endif //CONFIG_PLATFORM_MSTAR_TITANIA12
 		break;
 	case ANDROID_WIFI_CMD_SCAN_PASSIVE:
-		rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_PASSIVE);
+		//rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_PASSIVE);
 		break;
 		
 	case ANDROID_WIFI_CMD_RSSI:
@@ -467,6 +492,72 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 #endif //CONFIG_IOCTL_CFG80211
 
+#ifdef CONFIG_WFD
+	case ANDROID_WIFI_CMD_WFD_ENABLE:
+	{
+		//	Commented by Albert 2012/07/24
+		//	We can enable the WFD function by using the following command:
+		//	wpa_cli driver wfd-enable
+		
+		struct wifi_display_info		*pwfd_info;
+		_adapter*	padapter = ( _adapter * ) rtw_netdev_priv(net);
+	
+		pwfd_info = &padapter->wfd_info;
+		pwfd_info->wfd_enable = _TRUE;
+		break;
+	}
+
+	case ANDROID_WIFI_CMD_WFD_DISABLE:
+	{
+		//	Commented by Albert 2012/07/24
+		//	We can disable the WFD function by using the following command:
+		//	wpa_cli driver wfd-disable
+				
+		struct wifi_display_info		*pwfd_info;
+		_adapter*	padapter = ( _adapter * ) rtw_netdev_priv(net);
+	
+		pwfd_info = &padapter->wfd_info;
+		pwfd_info->wfd_enable = _FALSE;
+		break;
+	}
+	case ANDROID_WIFI_CMD_WFD_SET_TCPPORT:
+	{
+		//	Commented by Albert 2012/07/24
+		//	We can set the tcp port number by using the following command:
+		//	wpa_cli driver wfd-set-tcpport = 554
+		
+		struct wifi_display_info		*pwfd_info;
+		_adapter*	padapter = ( _adapter * ) rtw_netdev_priv(net);
+	
+		pwfd_info = &padapter->wfd_info;
+		pwfd_info->rtsp_ctrlport = ( u16 ) get_int_from_command( priv_cmd.buf );
+		break;
+	}
+	case ANDROID_WIFI_CMD_WFD_SET_MAX_TPUT:
+	{
+		
+		
+		break;
+	}
+	case ANDROID_WIFI_CMD_WFD_SET_DEVTYPE:
+	{
+		//	Commented by Albert 2012/08/28
+		//	Specify the WFD device type ( WFD source/primary sink )
+		
+		struct wifi_display_info		*pwfd_info;
+		_adapter*	padapter = ( _adapter * ) rtw_netdev_priv(net);
+	
+		pwfd_info = &padapter->wfd_info;
+		pwfd_info->wfd_device_type = ( u8 ) get_int_from_command( priv_cmd.buf );
+		
+		if ( ( WFD_DEVINFO_SOURCE != pwfd_info->wfd_device_type ) && ( WFD_DEVINFO_PSINK != pwfd_info->wfd_device_type ) )
+		{
+			pwfd_info->wfd_device_type = WFD_DEVINFO_PSINK;
+		}
+	
+		break;
+	}
+#endif
 	default:
 		DBG_871X("Unknown PRIVATE command %s - ignored\n", command);
 		snprintf(command, 3, "OK");
@@ -600,7 +691,7 @@ int wifi_get_mac_addr(unsigned char *buf)
 }
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) || defined(COMPAT_KERNEL_RELEASE)
 void *wifi_get_country_code(char *ccode)
 {
 	DHD_TRACE(("%s\n", __FUNCTION__));

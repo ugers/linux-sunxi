@@ -15,8 +15,8 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * 
-******************************************************************************/
+ *
+ ******************************************************************************/
 #define _RTW_STA_MGT_C_
 
 #include <drv_conf.h>
@@ -35,7 +35,7 @@
 
 #include <sta_info.h>
 
-
+void _rtw_init_stainfo(struct sta_info *psta);
 void _rtw_init_stainfo(struct sta_info *psta)
 {
 
@@ -155,6 +155,7 @@ _func_exit_;
 	
 }
 
+void	_rtw_free_sta_xmit_priv_lock(struct sta_xmit_priv *psta_xmitpriv);
 void	_rtw_free_sta_xmit_priv_lock(struct sta_xmit_priv *psta_xmitpriv)
 {
 _func_enter_;
@@ -180,6 +181,7 @@ _func_exit_;
 
 }
 
+void rtw_mfree_stainfo(struct sta_info *psta);
 void rtw_mfree_stainfo(struct sta_info *psta)
 {
 _func_enter_;
@@ -195,6 +197,7 @@ _func_exit_;
 
 
 // this function is used to free the memory of lock || sema for all stainfos
+void rtw_mfree_all_stainfo(struct sta_priv *pstapriv );
 void rtw_mfree_all_stainfo(struct sta_priv *pstapriv )
 {
 	_irqL	 irqL;
@@ -222,7 +225,7 @@ _func_exit_;
 
 }
 
-
+void rtw_mfree_sta_priv_lock(struct	sta_priv *pstapriv);
 void rtw_mfree_sta_priv_lock(struct	sta_priv *pstapriv)
 {
 	 rtw_mfree_all_stainfo(pstapriv); //be done before free sta_hash_lock
@@ -285,7 +288,7 @@ _func_enter_;
 		psta = LIST_CONTAINOR(get_next(&pfree_sta_queue->queue), struct sta_info, list);
 		
 		rtw_list_delete(&(psta->list));
-		
+
 		_exit_critical_bh(&(pfree_sta_queue->lock), &irqL);
 		
 		tmp_aid = psta->aid;	
@@ -336,7 +339,7 @@ _func_enter_;
 		init_off_ch_timer(pstapriv->padapter, psta);
 		init_handshake_timer(pstapriv->padapter, psta);
 		init_tdls_alive_timer(pstapriv->padapter, psta);
-#endif
+#endif //CONFIG_TDLS
 
 		//for A-MPDU Rx reordering buffer control
 		for(i=0; i < 16 ; i++)
@@ -363,13 +366,15 @@ _func_enter_;
 
 
 		//init for DM
-		psta->rssi_stat.UndecoratedSmoothedPWDB = (-1);
+		psta->rssi_stat.UndecoratedSmoothedPWDB = 0;
 		psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
 		
+		/* init for the sequence number of received management frame */
+		psta->RxMgmtFrameSeqNum = 0xffff;
 	}
 	
 exit:
-	
+
 _func_exit_;	
 
 	return psta;
@@ -463,7 +468,7 @@ _func_enter_;
 	_cancel_timer_ex(&psta->off_ch_timer);
 	_cancel_timer_ex(&psta->alive_timer1);
 	_cancel_timer_ex(&psta->alive_timer2);
-#endif
+#endif //CONFIG_TDLS
 
 	//for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer
 	for(i=0; i < 16 ; i++)
@@ -509,7 +514,6 @@ _func_enter_;
 	rtw_list_delete(&psta->asoc_list);	
 	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL0);
 */
-
 	_enter_critical_bh(&pstapriv->auth_list_lock, &irqL0);
 	rtw_list_delete(&psta->auth_list);
 	_exit_critical_bh(&pstapriv->auth_list_lock, &irqL0);
@@ -534,7 +538,7 @@ _func_enter_;
 
 	//rtw_indicate_sta_disassoc_event(padapter, psta);
 
-	if (pstapriv->sta_aid[psta->aid - 1] == psta)
+	if ((psta->aid >0)&&(pstapriv->sta_aid[psta->aid - 1] == psta))
 	{
 		pstapriv->sta_aid[psta->aid - 1] = NULL;
 		psta->aid = 0;

@@ -16,7 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-******************************************************************************/
+ ******************************************************************************/
 #define _XMIT_OSDEP_C_
 
 #include <drv_conf.h>
@@ -98,11 +98,11 @@ void rtw_set_tx_chksum_offload(_pkt *pkt, struct pkt_attrib *pattrib)
                         const struct iphdr *ip = ip_hdr(skb);
                         if (ip->protocol == IPPROTO_TCP) {
                                 // TCP checksum offload by HW
-                                DBG_8192C("CHECKSUM_PARTIAL TCP\n");
+                                DBG_871X("CHECKSUM_PARTIAL TCP\n");
                                 pattrib->hw_tcp_csum = 1;
                                 //skb_checksum_help(skb);
                         } else if (ip->protocol == IPPROTO_UDP) {
-                                //DBG_8192C("CHECKSUM_PARTIAL UDP\n");
+                                //DBG_871X("CHECKSUM_PARTIAL UDP\n");
 #if 1                       
                                 skb_checksum_help(skb);
 #else
@@ -111,12 +111,12 @@ void rtw_set_tx_chksum_offload(_pkt *pkt, struct pkt_attrib *pattrib)
                                 udp->check = 0;
 #endif
                         } else {
-				DBG_8192C("%s-%d TCP CSUM offload Error!!\n", __FUNCTION__, __LINE__);
+				DBG_871X("%s-%d TCP CSUM offload Error!!\n", __FUNCTION__, __LINE__);
                                 WARN_ON(1);     /* we need a WARN() */
 			    }
 		}
 		else { // IP fragmentation case
-			DBG_8192C("%s-%d nr_frags != 0, using skb_checksum_help(skb);!!\n", __FUNCTION__, __LINE__);
+			DBG_871X("%s-%d nr_frags != 0, using skb_checksum_help(skb);!!\n", __FUNCTION__, __LINE__);
                 	skb_checksum_help(skb);
 		}		
 	}
@@ -128,7 +128,7 @@ int rtw_os_xmit_resource_alloc(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 {
 #ifdef CONFIG_USB_HCI
 	int i;
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_TX
@@ -154,13 +154,13 @@ int rtw_os_xmit_resource_alloc(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
       		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
              	if(pxmitbuf->pxmit_urb[i] == NULL) 
              	{
-             		DBG_8192C("pxmitbuf->pxmit_urb[i]==NULL");
+             		DBG_871X("pxmitbuf->pxmit_urb[i]==NULL");
 	        	return _FAIL;	 
              	}      		  	
 	
       	}
 #endif
-#ifdef CONFIG_PCI_HCI
+#if defined(CONFIG_PCI_HCI) || defined(CONFIG_SDIO_HCI)
 	pxmitbuf->pallocated_buf = rtw_zmalloc(alloc_sz);
 	if (pxmitbuf->pallocated_buf == NULL)
 	{
@@ -177,7 +177,7 @@ void rtw_os_xmit_resource_free(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 {
 #ifdef CONFIG_USB_HCI
 	int i;
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
+	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
 
 
@@ -193,14 +193,14 @@ void rtw_os_xmit_resource_free(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_TX
 	rtw_usb_buffer_free(pusbd, (size_t)free_sz, pxmitbuf->pallocated_buf, pxmitbuf->dma_transfer_addr);
 	pxmitbuf->pallocated_buf =  NULL;
-	pxmitbuf->dma_transfer_addr = 0;	
+	pxmitbuf->dma_transfer_addr = 0;
 #else	// CONFIG_USE_USB_BUFFER_ALLOC_TX
 	if(pxmitbuf->pallocated_buf)
 		rtw_mfree(pxmitbuf->pallocated_buf, free_sz);
 #endif	// CONFIG_USE_USB_BUFFER_ALLOC_TX
 
 #endif
-#ifdef CONFIG_PCI_HCI
+#if defined(CONFIG_PCI_HCI) || defined(CONFIG_SDIO_HCI)
 	if(pxmitbuf->pallocated_buf)
 		rtw_mfree(pxmitbuf->pallocated_buf, free_sz);
 #endif
@@ -208,8 +208,20 @@ void rtw_os_xmit_resource_free(_adapter *padapter, struct xmit_buf *pxmitbuf,u32
 
 void rtw_os_pkt_complete(_adapter *padapter, _pkt *pkt)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
+	u16	queue;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+
+	queue = skb_get_queue_mapping(pkt);
+	if(__netif_subqueue_stopped(padapter->pnetdev, queue) &&
+		(pxmitpriv->hwxmits[queue].accnt < NR_XMITFRAME/2))
+	{
+		netif_wake_subqueue(padapter->pnetdev, queue);
+	}
+#else
 	if (netif_queue_stopped(padapter->pnetdev))
 		netif_wake_queue(padapter->pnetdev);
+#endif
 
 	dev_kfree_skb_any(pkt);
 }
@@ -230,17 +242,30 @@ void rtw_os_xmit_complete(_adapter *padapter, struct xmit_frame *pxframe)
 
 void rtw_os_xmit_schedule(_adapter *padapter)
 {
+#ifdef CONFIG_SDIO_HCI
+	if(!padapter)
+		return;
+	
+	if (rtw_txframes_pending(padapter))
+		_rtw_up_sema(&padapter->xmitpriv.xmit_sema);
+#else
 	_irqL  irqL;
-	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	struct xmit_priv *pxmitpriv;
+
+	if(!padapter)
+		return;
+
+	pxmitpriv = &padapter->xmitpriv;
 
 	_enter_critical_bh(&pxmitpriv->lock, &irqL);
-	
+
 	if(rtw_txframes_pending(padapter))	
 	{
 		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
 	}
 
 	_exit_critical_bh(&pxmitpriv->lock, &irqL);
+#endif
 }
 
 
@@ -308,7 +333,9 @@ int rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 	extern int rtw_mc2u_disable;
 #endif	// CONFIG_TX_MCAST2UNI	
 	s32 res = 0;
-	int ret = 0;
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	u16 queue;
+#endif
 
 _func_enter_;
 
@@ -321,6 +348,16 @@ _func_enter_;
 		#endif
 		goto drop_packet;
 	}
+
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
+	queue = skb_get_queue_mapping(pkt);
+	/* No free space for Tx, tx_worker is too slow */
+	if (pxmitpriv->hwxmits[queue].accnt > NR_XMITFRAME/2) {
+		//DBG_871X("%s(): stop netif_subqueue[%d]\n", __FUNCTION__, queue);
+		netif_stop_subqueue(padapter->pnetdev, queue);
+		return NETDEV_TX_BUSY;
+	}
+#endif
 
 #ifdef CONFIG_TX_MCAST2UNI
 	if ( !rtw_mc2u_disable
@@ -348,8 +385,8 @@ _func_enter_;
 		#endif
 		goto drop_packet;
 	}
-	pxmitpriv->tx_pkts++;
 
+	pxmitpriv->tx_pkts++;
 	RT_TRACE(_module_xmit_osdep_c_, _drv_info_, ("rtw_xmit_entry: tx_pkts=%d\n", (u32)pxmitpriv->tx_pkts));
 	goto exit;
 

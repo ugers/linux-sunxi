@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -22,9 +22,9 @@
 
 #include <rtw_debug.h>
 
-#ifdef CONFIG_DEBUG_RTL871X
+//#ifdef CONFIG_DEBUG_RTL871X
 
-	u32 GlobalDebugLevel = _drv_info_;
+	u32 GlobalDebugLevel = _drv_err_;
 
 	u64 GlobalDebugComponents = \
 			_module_rtl871x_xmit_c_ |
@@ -52,12 +52,12 @@
 			_module_hci_ops_os_c_|
 			_module_rtl871x_ioctl_os_c|
 			_module_rtl8712_cmd_c_|
-			_module_rtl8192c_xmit_c_|
+			_module_hal_xmit_c_|
 			_module_rtl8712_recv_c_ |
 			_module_mp_ |
 			_module_efuse_;
 
-#endif
+//#endif
 
 #ifdef CONFIG_PROC_DEBUG
 #include <rtw_version.h>
@@ -74,6 +74,51 @@ int proc_get_drv_version(char *page, char **start,
 				
 	*eof = 1;
 	return len;
+}
+
+int proc_get_log_level(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	
+	int len = 0;
+
+	len += snprintf(page + len, count - len,
+		"log_level:%d\n",
+		GlobalDebugLevel
+		);
+
+	*eof = 1;
+	return len;
+}
+
+int proc_set_log_level(struct file *file, const char *buffer,
+		unsigned long count, void *data)
+{
+	struct net_device *dev = (struct net_device *)data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+	u32 is_signal_dbg;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%d ", &is_signal_dbg);
+
+		if( is_signal_dbg >= 0 && is_signal_dbg < 10 )
+		{
+			GlobalDebugLevel= is_signal_dbg;
+			printk("%d\n", GlobalDebugLevel);
+		}
+	}
+	
+	return count;
+	
 }
 
 int proc_get_write_reg(char *page, char **start,
@@ -94,7 +139,7 @@ int proc_set_write_reg(struct file *file, const char *buffer,
 
 	if (count < 3)
 	{
-		DBG_8192C("argument size is less than 3\n");
+		DBG_871X("argument size is less than 3\n");
 		return -EFAULT;
 	}	
 
@@ -103,7 +148,7 @@ int proc_set_write_reg(struct file *file, const char *buffer,
 		int num = sscanf(tmp, "%x %x %x", &addr, &val, &len);
 
 		if (num !=  3) {
-			DBG_8192C("invalid write_reg parameter!\n");
+			DBG_871X("invalid write_reg parameter!\n");
 			return count;
 		}
 
@@ -119,7 +164,7 @@ int proc_set_write_reg(struct file *file, const char *buffer,
 				rtw_write32(padapter, addr, val);				
 				break;
 			default:
-				DBG_8192C("error write length=%d", len);
+				DBG_871X("error write length=%d", len);
 				break;
 		}			
 		
@@ -171,14 +216,12 @@ int proc_get_read_reg(char *page, char **start,
 int proc_set_read_reg(struct file *file, const char *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
-	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	char tmp[16];
 	u32 addr, len;
 
 	if (count < 2)
 	{
-		DBG_8192C("argument size is less than 2\n");
+		DBG_871X("argument size is less than 2\n");
 		return -EFAULT;
 	}	
 
@@ -187,7 +230,7 @@ int proc_set_read_reg(struct file *file, const char *buffer,
 		int num = sscanf(tmp, "%x %x", &addr, &len);
 
 		if (num !=  2) {
-			DBG_8192C("invalid read_reg parameter!\n");
+			DBG_871X("invalid read_reg parameter!\n");
 			return count;
 		}
 
@@ -296,6 +339,13 @@ int proc_get_rf_info(char *page, char **start,
 	len += snprintf(page + len, count - len, "cur_ch=%d, cur_bw=%d, cur_ch_offet=%d\n", 
 					pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset);
 	
+#ifdef CONFIG_CONCURRENT_MODE
+	if(padapter->pcodatapriv)
+	{	
+		len += snprintf(page + len, count - len, "co_ch=%d, co_bw=%d, co_ch_offset=%d\n", 
+					padapter->pcodatapriv->co_ch, padapter->pcodatapriv->co_bw, padapter->pcodatapriv->co_ch_offset);
+	}	
+#endif //CONFIG_CONCURRENT_MODE
 				
 	*eof = 1;
 	return len;
@@ -375,12 +425,22 @@ int proc_get_trx_info(char *page, char **start,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct recv_priv  *precvpriv = &padapter->recvpriv;
+	struct dvobj_priv	*pdvobj = adapter_to_dvobj(padapter);	
 	int len = 0;
 	
 	len += snprintf(page + len, count - len, "free_xmitbuf_cnt=%d, free_xmitframe_cnt=%d, free_ext_xmitbuf_cnt=%d, free_recvframe_cnt=%d\n", 
 				pxmitpriv->free_xmitbuf_cnt, pxmitpriv->free_xmitframe_cnt,pxmitpriv->free_xmit_extbuf_cnt, precvpriv->free_recvframe_cnt);
 #ifdef CONFIG_USB_HCI
-	len += snprintf(page + len, count - len, "rx_urb_pending_cn=%d\n", precvpriv->rx_pending_cnt);
+	len += snprintf(page + len, count - len, "rx_urb_pending_cnt=%d\n", precvpriv->rx_pending_cnt);
+#endif
+
+	len += snprintf(page + len, count - len, "recvbuf_skb_alloc_fail_cnt=%d\n", precvpriv->recvbuf_skb_alloc_fail_cnt);
+	len += snprintf(page + len, count - len, "recvbuf_null_cnt=%d\n", precvpriv->recvbuf_null_cnt);
+	len += snprintf(page + len, count - len, "read_port_complete_EINPROGRESS_cnt=%d\n", precvpriv->read_port_complete_EINPROGRESS_cnt);
+	len += snprintf(page + len, count - len, "read_port_complete_other_urb_err_cnt=%d\n", precvpriv->read_port_complete_other_urb_err_cnt);
+	len += snprintf(page + len, count - len, "hw_init_completed=%d\n", padapter->hw_init_completed);
+#ifdef CONFIG_USB_HCI
+	len += snprintf(page + len, count - len, "continual_urb_error=%d\n", atomic_read(&pdvobj->continual_urb_error));
 #endif
 
 	*eof = 1;
@@ -388,6 +448,243 @@ int proc_get_trx_info(char *page, char **start,
 
 }
 	
+		
+
+int proc_get_mac_reg_dump1(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1;
+
+	len += snprintf(page + len, count - len, "\n======= MAC REG =======\n");
+
+	for(i=0x0;i<0x300;i+=4)
+	{	
+		if(j%4==1)	len += snprintf(page + len, count - len,"0x%02x",i);
+		len += snprintf(page + len, count - len," 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	len += snprintf(page + len, count - len,"\n");	
+	}
+
+	*eof = 1;
+	return len;
+
+}
+
+int proc_get_mac_reg_dump2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1;
+
+	len += snprintf(page + len, count - len, "\n======= MAC REG =======\n");
+	memset(page, 0, count);
+	for(i=0x300;i<0x600;i+=4)
+	{	
+		if(j%4==1)	len += snprintf(page + len, count - len,"0x%02x",i);
+		len += snprintf(page + len, count - len," 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	len += snprintf(page + len, count - len,"\n");	
+	}
+	
+	*eof = 1;
+	return len;
+
+}
+
+int proc_get_mac_reg_dump3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1;
+
+	len += snprintf(page + len, count - len, "\n======= MAC REG =======\n");
+
+	for(i=0x600;i<0x800;i+=4)
+	{	
+		if(j%4==1)	len += snprintf(page + len, count - len,"0x%02x",i);
+		len += snprintf(page + len, count - len," 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	len += snprintf(page + len, count - len,"\n");	
+	}
+
+	*eof = 1;
+	return len;
+
+}
+
+int proc_get_bb_reg_dump1(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);	
+	int len = 0;
+	int i,j=1;		
+
+	len += snprintf(page + len, count - len, "\n======= BB REG =======\n");	
+	for(i=0x800;i<0xB00;i+=4)
+	{
+		if(j%4==1) 	len += snprintf(page + len, count - len,"0x%02x",i);		
+		len += snprintf(page + len, count - len," 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	len += snprintf(page + len, count - len,"\n");	
+	}
+	*eof = 1;
+	return len;	
+}
+
+int proc_get_bb_reg_dump2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);	
+	int len = 0;
+	int i,j=1;		
+
+	len += snprintf(page + len, count - len, "\n======= BB REG =======\n");	
+	for(i=0xB00;i<0xE00;i+=4)
+	{
+		if(j%4==1) 	len += snprintf(page + len, count - len,"0x%02x",i);		
+		len += snprintf(page + len, count - len," 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	len += snprintf(page + len, count - len,"\n");	
+	}
+	*eof = 1;
+	return len;	
+}
+
+int proc_get_bb_reg_dump3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);	
+	int len = 0;
+	int i,j=1;		
+
+	len += snprintf(page + len, count - len, "\n======= BB REG =======\n");	
+	for(i=0xE00;i<0x1000;i+=4)
+	{
+		if(j%4==1) 	len += snprintf(page + len, count - len,"0x%02x",i);		
+		len += snprintf(page + len, count - len," 0x%08x ",rtw_read32(padapter,i));		
+		if((j++)%4 == 0)	len += snprintf(page + len, count - len,"\n");	
+	}
+	*eof = 1;
+	return len;	
+}
+
+int proc_get_rf_reg_dump1(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1,path;
+	u32 value;
+	
+	len += snprintf(page + len, count - len, "\n======= RF REG =======\n");
+	path = 1;
+	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n",path);
+	for(i=0;i<0xC0;i++)
+	{								
+		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
+		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
+		len += snprintf(page + len, count - len, " 0x%08x ",value);
+		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");	
+	}
+
+	*eof = 1;
+	return len;	
+}
+
+
+int proc_get_rf_reg_dump2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1,path;
+	u32 value;	
+
+	len += snprintf(page + len, count - len, "\n======= RF REG =======\n");	
+	path = 1;
+	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n",path);
+	for(i=0xC0;i<0x100;i++)
+	{								
+		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
+		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
+		len += snprintf(page + len, count - len, " 0x%08x ",value);
+		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");	
+	}
+	*eof = 1;
+	return len;	
+}
+
+
+int proc_get_rf_reg_dump3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1,path;
+	u32 value;	
+
+	len += snprintf(page + len, count - len, "\n======= RF REG =======\n");
+	path = 2;
+	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n",path);
+	for(i=0;i<0xC0;i++)
+	{								
+		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
+		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
+		len += snprintf(page + len, count - len, " 0x%08x ",value);
+		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");	
+	}
+
+	*eof = 1;
+	return len;	
+}
+
+
+int proc_get_rf_reg_dump4(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	int len = 0;
+	int i,j=1,path;
+	u32 value;
+
+	len += snprintf(page + len, count - len, "\n======= RF REG =======\n");
+	path = 2;
+	len += snprintf(page + len, count - len, "\nRF_Path(%x)\n",path);
+	for(i=0xC0;i<0x100;i++)
+	{								
+		//value = PHY_QueryRFReg(padapter, (RF90_RADIO_PATH_E)path,i, bMaskDWord);
+		value =padapter->HalFunc.read_rfreg(padapter, path, i, 0xffffffff);
+		if(j%4==1)	len += snprintf(page + len, count - len, "0x%02x ",i);
+		len += snprintf(page + len, count - len, " 0x%08x ",value);
+		if((j++)%4==0)	len += snprintf(page + len, count - len, "\n");
+	}
+	*eof = 1;
+	return len;	
+}
+
+
 		
 int proc_get_rx_signal(char *page, char **start,
 			  off_t offset, int count,
@@ -451,6 +748,206 @@ int proc_set_rx_signal(struct file *file, const char *buffer,
 	
 	return count;
 	
+}
+
+int proc_get_cbw40_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	int len = 0;
+	
+	if(pregpriv)
+		len += snprintf(page + len, count - len,
+			"%d\n",
+			pregpriv->cbw40_enable
+			);
+
+	*eof = 1;
+	return len;
+}
+
+int proc_set_cbw40_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data)
+{
+	struct net_device *dev = (struct net_device *)data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u32 mode;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%d ", &mode);
+
+		if( pregpriv && mode >= 0 && mode < 2 )
+		{
+			pregpriv->cbw40_enable= mode;
+			printk("cbw40_enable=%d\n", mode);
+		}
+	}
+	
+	return count;
+	
+}
+
+int proc_get_ampdu_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	int len = 0;
+	
+	if(pregpriv)
+		len += snprintf(page + len, count - len,
+			"%d\n",
+			pregpriv->ampdu_enable
+			);
+
+	*eof = 1;
+	return len;
+}
+
+int proc_set_ampdu_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data)
+{
+	struct net_device *dev = (struct net_device *)data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u32 mode;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%d ", &mode);
+
+		if( pregpriv && mode >= 0 && mode < 3 )
+		{
+			pregpriv->ampdu_enable= mode;
+			printk("ampdu_enable=%d\n", mode);
+		}
+	}
+	
+	return count;
+	
+}
+
+
+int proc_get_two_path_rssi(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	
+	int len = 0;
+	
+	if(padapter)
+		len += snprintf(page + len, count - len,
+			"%d %d\n",
+			padapter->recvpriv.RxRssi[0],
+			padapter->recvpriv.RxRssi[1]
+			);
+
+	*eof = 1;
+	return len;
+}
+
+int proc_get_rx_stbc(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	int len = 0;
+	
+	if(pregpriv)
+		len += snprintf(page + len, count - len,
+			"%d\n",
+			pregpriv->rx_stbc
+			);
+
+	*eof = 1;
+	return len;
+}
+
+int proc_set_rx_stbc(struct file *file, const char *buffer,
+		unsigned long count, void *data)
+{
+	struct net_device *dev = (struct net_device *)data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	char tmp[32];
+	u32 mode;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%d ", &mode);
+
+		if( pregpriv && (mode == 0 || mode == 1|| mode == 2|| mode == 3))
+		{
+			pregpriv->rx_stbc= mode;
+			printk("rx_stbc=%d\n", mode);
+		}
+	}
+	
+	return count;
+	
+}
+
+int proc_get_vid(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	u16 VID=0;
+	int len = 0;
+
+	padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_VID, (u8 *)&VID);	
+	len += snprintf(page + len, count - len,
+		"%04x\n",
+		VID
+		);
+
+	*eof = 1;
+	return len;	
+}
+
+int proc_get_pid(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	u16 PID=0;	
+	int len = 0;
+
+	padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_PID, (u8 *)&PID);		
+	len += snprintf(page + len, count - len,
+		"%04x\n",
+		PID
+		);
+
+	*eof = 1;
+	return len;	
 }
 
 int proc_get_rssi_disp(char *page, char **start,

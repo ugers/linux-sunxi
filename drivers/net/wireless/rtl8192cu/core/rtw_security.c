@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #define  _RTW_SECURITY_C_
 
 #include <drv_conf.h>
@@ -776,8 +775,6 @@ _func_enter_;
 	if(prxattrib->encrypt==_TKIP_){
 
 		stainfo=rtw_get_stainfo(&padapter->stapriv ,&prxattrib->ta[0] );
-	
-		
 		if (stainfo!=NULL){
 
 			if(IS_MCAST(prxattrib->ra))
@@ -788,8 +785,7 @@ _func_enter_;
 					DBG_8192C("%s:rx bc/mc packets,but didn't install group key!!!!!!!!!!\n",__FUNCTION__);
 					goto exit;
 				}
-					
-				DBG_871X("rx bc/mc packets, to perform sw rtw_tkip_decrypt\n");
+				//DBG_871X("rx bc/mc packets, to perform sw rtw_tkip_decrypt\n");
 				//prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				prwskeylen=16;
@@ -922,11 +918,13 @@ static void next_key(u8 *key, sint round);
 static void byte_sub(u8 *in, u8 *out);
 static void shift_row(u8 *in, u8 *out);
 static void mix_column(u8 *in, u8 *out);
+#ifndef PLATFORM_FREEBSD 
 static void add_round_key( u8 *shiftrow_in,
                     u8 *mcol_in,
                     u8 *block_in,
                     sint round,
                     u8 *out);
+#endif //PLATFORM_FREEBSD
 static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext);
 
 
@@ -1551,6 +1549,18 @@ _func_enter_;
 				prwskey=&stainfo->dot118021x_UncstKey.skey[0];
 			}
 
+#ifdef CONFIG_TDLS	//swencryption
+			{
+				struct	sta_info		*ptdls_sta;
+				ptdls_sta=rtw_get_stainfo(&padapter->stapriv ,&pattrib->dst[0] );
+				if((ptdls_sta != NULL) && (ptdls_sta->tdls_sta_state & TDLS_LINKED_STATE) )
+				{
+					DBG_871X("[%s] for tdls link\n", __FUNCTION__);
+					prwskey=&ptdls_sta->tpk.tk[0];
+				}
+			}
+#endif //CONFIG_TDLS
+
 			prwskeylen=16;
 	
 			for(curfragnum=0;curfragnum<pattrib->nr_frags;curfragnum++){
@@ -1591,7 +1601,6 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	static u8	message[MAX_MSG_SIZE];
 	uint	qc_exists, a4_exists, i, j, payload_remainder,
 			num_blocks, payload_index;
-
 	sint res = _SUCCESS;
 	u8 pn_vector[6];
 	u8 mic_iv[16];
@@ -1841,10 +1850,23 @@ _func_enter_;
 	//compare the mic
 	for(i=0;i<8;i++){
 		if(pframe[hdrlen+8+plen-8+i] != message[hdrlen+8+plen-8+i])
+		{
 			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("aes_decipher:mic check error mic[%d]: pframe(%x) != message(%x) \n",
 						i,pframe[hdrlen+8+plen-8+i],message[hdrlen+8+plen-8+i]));
-		res = _FAIL;
+			DBG_871X("aes_decipher:mic check error mic[%d]: pframe(%x) != message(%x) \n",
+						i,pframe[hdrlen+8+plen-8+i],message[hdrlen+8+plen-8+i]);
+			res = _FAIL;
+		}
 	}
+
+	if(res == _FAIL)
+	{
+		int gg=0;
+		for(gg=0; gg < 32; gg++)
+			DBG_871X(" [%d]=%02x ", gg, pframe[gg]);
+		DBG_871X("error packet header \n");
+	}
+
 _func_exit_;	
 	return res;
 }
@@ -1879,15 +1901,15 @@ _func_enter_;
 
 			if(IS_MCAST(prxattrib->ra))
 			{
+				//in concurrent we should use sw descrypt in group key, so we remove this message			
+				//DBG_871X("rx bc/mc packets, to perform sw rtw_aes_decrypt\n");
+				//prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 				if(psecuritypriv->binstallGrpkey==_FALSE)
 				{
 					res=_FAIL;				
 					DBG_8192C("%s:rx bc/mc packets,but didn't install group key!!!!!!!!!!\n",__FUNCTION__);
 					goto exit;
 				}
-			
-				DBG_871X("rx bc/mc packets, to perform sw rtw_aes_decrypt\n");
-				//prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				prwskeylen=16;
 			}
@@ -1898,8 +1920,16 @@ _func_enter_;
 			}
 	
 			length= ((union recv_frame *)precvframe)->u.hdr.len-prxattrib->hdrlen-prxattrib->iv_len;
-				
-			res= aes_decipher(prwskey,prxattrib->hdrlen,pframe, length);
+
+			if(psecuritypriv->dot118021XGrpKeyid == prxattrib->key_index)
+				res= aes_decipher(prwskey,prxattrib->hdrlen,pframe, length);
+			else
+			{
+				DBG_871X("not match packet_index=%d, install_index=%d \n"
+				, prxattrib->key_index, psecuritypriv->dot118021XGrpKeyid);
+				res=_FAIL;
+			}
+
 
 
 		}
@@ -1909,11 +1939,11 @@ _func_enter_;
 		}
 						
 	}
-_func_exit_;
+_func_exit_;	
 exit:
 	return res;
 }
-
+#ifndef PLATFORM_FREEBSD
 /* compress 512-bits */
 static int sha256_compress(struct sha256_state *md, unsigned char *buf)
 {
@@ -2179,7 +2209,7 @@ static void hmac_sha256_vector(u8 *key, size_t key_len, size_t num_elem,
 	_len[1] = 32;
 	sha256_vector(2, _addr, _len, mac);
 }
-
+#endif //PLATFORM_FREEBSD
 /**
  * sha256_prf - SHA256-based Pseudo-Random Function (IEEE 802.11r, 8.5.1.5.2)
  * @key: Key for PRF
@@ -2193,6 +2223,7 @@ static void hmac_sha256_vector(u8 *key, size_t key_len, size_t num_elem,
  * This function is used to derive new, cryptographically separate keys from a
  * given key.
  */
+#ifndef PLATFORM_FREEBSD //Baron
 static void sha256_prf(u8 *key, size_t key_len, char *label,
 		u8 *data, size_t data_len, u8 *buf, size_t buf_len)
 {
@@ -2229,6 +2260,7 @@ static void sha256_prf(u8 *key, size_t key_len, char *label,
 		counter++;
 	}
 }
+#endif //PLATFORM_FREEBSD Baron
 
 /* AES tables*/
 const u32 Te0[256] = {
@@ -2407,6 +2439,7 @@ const u8 rcons[] = {
  *
  * @return	the number of rounds for the given cipher key size.
  */
+#ifndef PLATFORM_FREEBSD //Baron
 static void rijndaelKeySetupEnc(u32 rk[/*44*/], const u8 cipherKey[])
 {
 	int i;
@@ -2622,6 +2655,7 @@ static int omac1_aes_128(u8 *key, u8 *data, size_t data_len, u8 *mac)
 {
 	return omac1_aes_128_vector(key, 1, &data, &data_len, mac);
 }
+#endif //PLATFORM_FREEBSD Baron
 
 #ifdef CONFIG_TDLS
 void wpa_tdls_generate_tpk(_adapter *padapter, struct sta_info *psta)
@@ -2695,7 +2729,7 @@ int wpa_tdls_ftie_mic(u8 *kck, u8 trans_seq,
 		2 + timeoutie[1] + 2 + ftie[1];
 	buf = rtw_zmalloc(len);
 	if (!buf) {
-		DBG_8192C("TDLS: No memory for MIC calculation\n");
+		DBG_871X("TDLS: No memory for MIC calculation\n");
 		return -1;
 	}
 
@@ -2741,7 +2775,6 @@ int tdls_verify_mic(u8 *kck, u8 trans_seq,
 
 	if (lnkid == NULL || rsnie == NULL ||
 	    timeoutie == NULL || ftie == NULL){
-		DBG_8192C("pointer fail\n");    
 		return 0;
 	}
 	
@@ -2783,16 +2816,16 @@ int tdls_verify_mic(u8 *kck, u8 trans_seq,
 	rx_ftie = ftie+4;
 
 	if (os_memcmp(mic, rx_ftie, 16) == 0) {
-	//Valid MIC
-	DBG_8192C( "[%s] Valid MIC\n", __FUNCTION__);
+		//Valid MIC
 		return 1;
 	}
+
 	//Invalid MIC
-	DBG_8192C( "[%s] Invalid MIC\n", __FUNCTION__);
+	DBG_871X( "[%s] Invalid MIC\n", __FUNCTION__);
 	return 0;
 
 }
-#endif
+#endif //CONFIG_TDLS
 
 #ifdef PLATFORM_WINDOWS
 void rtw_use_tkipkey_handler (
@@ -2803,6 +2836,9 @@ void rtw_use_tkipkey_handler (
 	)
 #endif
 #ifdef PLATFORM_LINUX
+void rtw_use_tkipkey_handler(void *FunctionContext)
+#endif
+#ifdef PLATFORM_FREEBSD
 void rtw_use_tkipkey_handler(void *FunctionContext)
 #endif
 {

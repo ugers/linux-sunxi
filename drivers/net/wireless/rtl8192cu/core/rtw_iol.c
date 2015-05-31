@@ -145,7 +145,7 @@ int _rtw_IOL_append_WD_cmd(struct xmit_frame *xmit_frame, u16 addr, u32 value)
 #ifdef DBG_IO
 int dbg_rtw_IOL_append_WB_cmd(struct xmit_frame *xmit_frame, u16 addr, u8 value, const char *caller, const int line)
 {
-	if(addr + 1 > DBG_IO_WRITE_SNIFF_ADDR_START && addr <= DBG_IO_WRITE_SNIFF_ADDR_END)
+	if (match_write_sniff_ranges(addr, 1))
 		DBG_871X("DBG_IO %s:%d IOL_WB(0x%04x, 0x%02x)\n", caller, line, addr, value);
 
 	return _rtw_IOL_append_WB_cmd(xmit_frame, addr, value);
@@ -153,7 +153,7 @@ int dbg_rtw_IOL_append_WB_cmd(struct xmit_frame *xmit_frame, u16 addr, u8 value,
 
 int dbg_rtw_IOL_append_WW_cmd(struct xmit_frame *xmit_frame, u16 addr, u16 value, const char *caller, const int line)
 {
-	if(addr + 2 > DBG_IO_WRITE_SNIFF_ADDR_START && addr <= DBG_IO_WRITE_SNIFF_ADDR_END)
+	if (match_write_sniff_ranges(addr, 2))
 		DBG_871X("DBG_IO %s:%d IOL_WW(0x%04x, 0x%04x)\n", caller, line, addr, value);
 
 	return _rtw_IOL_append_WW_cmd(xmit_frame, addr, value);
@@ -161,7 +161,7 @@ int dbg_rtw_IOL_append_WW_cmd(struct xmit_frame *xmit_frame, u16 addr, u16 value
 
 int dbg_rtw_IOL_append_WD_cmd(struct xmit_frame *xmit_frame, u16 addr, u32 value, const char *caller, const int line)
 {
-	if(addr + 4 > DBG_IO_WRITE_SNIFF_ADDR_START && addr <= DBG_IO_WRITE_SNIFF_ADDR_END)
+	if (match_write_sniff_ranges(addr, 4))
 		DBG_871X("DBG_IO %s:%d IOL_WD(0x%04x, 0x%08x)\n", caller, line, addr, value);
 
 	return _rtw_IOL_append_WD_cmd(xmit_frame, addr, value);
@@ -255,7 +255,7 @@ bool rtw_IOL_applied(ADAPTER *adapter)
 		return _TRUE;
 
 #ifdef CONFIG_USB_HCI
-	if(!adapter->dvobjpriv.ishighspeed)
+	if(!adapter_to_dvobj(adapter)->ishighspeed)
 		return _TRUE;
 #endif
 

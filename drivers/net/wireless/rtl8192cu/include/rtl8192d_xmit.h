@@ -16,21 +16,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #ifndef _RTL8192D_XMIT_H_
 #define _RTL8192D_XMIT_H_
-
-#define VO_QUEUE_INX		0
-#define VI_QUEUE_INX		1
-#define BE_QUEUE_INX		2
-#define BK_QUEUE_INX		3
-#define BCN_QUEUE_INX		4
-#define MGT_QUEUE_INX		5
-#define HIGH_QUEUE_INX		6
-#define TXCMD_QUEUE_INX	7
-
-#define HW_QUEUE_ENTRY	8
 
 //
 // Queue Select Value in TxDesc
@@ -72,7 +60,7 @@ void rtl8192du_cal_txdesc_chksum(struct tx_desc	*ptxdesc);
 
 s32 rtl8192du_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 
-void rtl8192du_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
+s32 rtl8192du_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
 
 s32 rtl8192du_hal_xmit(_adapter *padapter, struct xmit_frame *pxmitframe);
 
@@ -91,7 +79,7 @@ struct xmit_buf *rtl8192de_dequeue_xmitbuf(struct rtw_tx_ring *ring);
 
 void	rtl8192de_xmitframe_resume(_adapter *padapter);
 
-void	rtl8192de_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
+s32	rtl8192de_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
 
 s32	rtl8192de_hal_xmit(_adapter *padapter, struct xmit_frame *pxmitframe);
 

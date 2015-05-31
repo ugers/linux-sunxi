@@ -27,6 +27,10 @@
 	#error "We haven't verify our cfg80211 solution below kernel version 2.6.35"
 #endif
 
+#if defined(RTW_USE_CFG80211_STA_EVENT)
+	#undef CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
+#endif
+
 struct rtw_wdev_priv
 {	
 	struct wireless_dev *rtw_wdev;
@@ -43,8 +47,14 @@ struct rtw_wdev_priv
 
 	u8 provdisc_req_issued;
 
+	u8 bandroid_scan;
 	bool block;
 
+#ifdef CONFIG_CONCURRENT_MODE
+	ATOMIC_T ro_ch_to;
+	ATOMIC_T switch_ch_to;	
+#endif	
+	
 };
 
 #define wdev_to_priv(w) ((struct rtw_wdev_priv *)(wdev_priv(w)))
@@ -76,6 +86,14 @@ void rtw_cfg80211_rx_p2p_action_public(_adapter *padapter, u8 *pmgmt_frame, uint
 void rtw_cfg80211_rx_action_p2p(_adapter *padapter, u8 *pmgmt_frame, uint frame_len);
 
 int rtw_cfg80211_set_mgnt_wpsp2pie(struct net_device *net, char *buf, int len, int type);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))  && !defined(COMPAT_KERNEL_RELEASE)
+#define rtw_cfg80211_rx_mgmt(dev, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt(dev, freq, buf, len, gfp)
+#define rtw_cfg80211_send_rx_assoc(dev, bss, buf, len) cfg80211_send_rx_assoc(dev, buf, len)
+#else
+#define rtw_cfg80211_rx_mgmt(dev, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt(dev, freq, sig_dbm, buf, len, gfp)
+#define rtw_cfg80211_send_rx_assoc(dev, bss, buf, len) cfg80211_send_rx_assoc(dev, bss, buf, len)
+#endif
 
 #endif //__IOCTL_CFG80211_H__
 

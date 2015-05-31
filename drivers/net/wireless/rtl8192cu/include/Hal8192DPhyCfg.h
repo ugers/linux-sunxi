@@ -157,6 +157,16 @@ typedef enum _MACPHY_MODE_8192D{
 	DUALMAC_SINGLEPHY,
 }MACPHY_MODE_8192D,*PMACPHY_MODE_8192D;
 
+typedef enum _MACPHY_MODE_CHANGE_ACTION{
+	DMDP2DMSP = 0,
+	DMSP2DMDP = 1,
+	DMDP2SMSP = 2,
+	SMSP2DMDP = 3,
+	DMSP2SMSP = 4,
+	SMSP2DMSP = 5,
+	MAXACTION
+}MACPHY_MODE_CHANGE_ACTION,*PMACPHY_MODE_CHANGE_ACTION;
+
 typedef enum _BAND_TYPE{
 	BAND_ON_2_4G = 0,
 	BAND_ON_5G,
@@ -513,6 +523,9 @@ HalChangeCCKStatus8192D(
 	IN	PADAPTER	Adapter,
 	IN	BOOLEAN		bCCKDisable
 );
+
+VOID 
+PHY_InitPABias92D(IN	PADAPTER Adapter);
 
 /*--------------------------Exported Function prototype---------------------*/
 

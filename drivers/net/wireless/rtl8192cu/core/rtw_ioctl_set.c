@@ -16,7 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-******************************************************************************/
+ ******************************************************************************/
 #define _RTW_IOCTL_SET_C_
 
 
@@ -73,6 +73,7 @@ _func_exit_;
 	return ret;
 }
 
+u8 rtw_do_join(_adapter * padapter);
 u8 rtw_do_join(_adapter * padapter)
 {
 	_irqL	irqL;
@@ -81,7 +82,7 @@ u8 rtw_do_join(_adapter * padapter)
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	_queue	*queue	= &(pmlmepriv->scanned_queue);
 	u8 ret=_SUCCESS;
-	
+
 _func_enter_;
 
 	_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
@@ -196,7 +197,7 @@ _func_enter_;
 					#endif
 				)
 				{
-					//DBG_8192C("rtw_do_join() when no desired bss in scanning queue \n");
+					//DBG_871X("rtw_do_join() when   no desired bss in scanning queue \n");
 					if( _SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ){
 						RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("do_join(): site survey return error\n."));
 					}
@@ -317,8 +318,8 @@ u8 rtw_set_802_11_bssid(_adapter* padapter, u8 *bssid)
 	_irqL irqL;	
 	u8 status=_SUCCESS;
 	u32 cur_time = 0;
+
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	_queue *queue = &pmlmepriv->scanned_queue;
 	
 _func_enter_;
 	
@@ -419,7 +420,6 @@ u8 rtw_set_802_11_ssid(_adapter* padapter, NDIS_802_11_SSID *ssid)
 
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
-
 	
 _func_enter_;
 	
@@ -599,6 +599,16 @@ _func_enter_;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,(" change mode!"));
 		//DBG_871X("change mode, old_mode=%d, new_mode=%d, fw_state=0x%x\n", *pold_state, networktype, get_fwstate(pmlmepriv));
 
+		if(*pold_state==Ndis802_11APMode)
+		{		
+			//change to other mode from Ndis802_11APMode			
+			cur_network->join_res = -1;
+			
+#ifdef CONFIG_NATIVEAP_MLME
+			stop_ap_mode(padapter);
+#endif
+		}	
+
 		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||(*pold_state==Ndis802_11IBSS))
 			rtw_disassoc_cmd(padapter);
 
@@ -612,21 +622,10 @@ _func_enter_;
 			rtw_indicate_disconnect(padapter); //will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not
 		}	
 	
-		if(*pold_state==Ndis802_11APMode)
-		{		
-			//change to other mode from Ndis802_11APMode			
-			cur_network->join_res = -1;
-			
-#ifdef CONFIG_NATIVEAP_MLME
-			stop_ap_mode(padapter);
-#endif
-		}	
-		
+
 		*pold_state = networktype;
 
-				// clear WIFI_STATION_STATE; WIFI_AP_STATE; WIFI_ADHOC_STATE; WIFI_ADHOC_MASTER_STATE
-		//pmlmepriv->fw_state &= 0xffffff87;		
-		_clr_fwstate_(pmlmepriv, WIFI_STATION_STATE|WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE);
+		_clr_fwstate_(pmlmepriv, ~WIFI_NULL_STATE);
 				
 		switch(networktype)
 		{
@@ -691,7 +690,7 @@ _func_exit_;
 	return _TRUE;	
 }
 
-u8 rtw_set_802_11_bssid_list_scan(_adapter* padapter)
+u8 rtw_set_802_11_bssid_list_scan(_adapter* padapter, NDIS_802_11_SSID *pssid, int ssid_max_num)
 {	
 	_irqL	irqL;
 	struct	mlme_priv		*pmlmepriv= &padapter->mlmepriv;
@@ -734,7 +733,7 @@ _func_enter_;
 		
 		_enter_critical_bh(&pmlmepriv->lock, &irqL);		
 		
-		res = rtw_sitesurvey_cmd(padapter, NULL, 0);
+		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num);
 		
 		_exit_critical_bh(&pmlmepriv->lock, &irqL);
 	}
@@ -1300,21 +1299,24 @@ _func_exit_;
 }
 
 /*
-* rtw_get_network_max_rate - 
+* rtw_get_cur_max_rate - 
 * @adapter: pointer to _adapter structure
-* @bss: 
 * 
-* Return 0 or Mbps
+* Return 0 or 100Kbps
 */
-u16 rtw_get_network_max_rate(_adapter *adapter, WLAN_BSSID_EX *bss)
+u16 rtw_get_cur_max_rate(_adapter *adapter)
 {
-	int i =0;
+	int i = 0;
 	u8 *p;
 	u16 rate = 0, max_rate = 0, ht_cap=_FALSE;
 	u32 ht_ielen = 0;	
+	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
+	WLAN_BSSID_EX  *pcur_bss = &pmlmepriv->cur_network.network;
 	struct rtw_ieee80211_ht_cap *pht_capie;
-	u8	bw_40MHz=0, short_GI=0;
+	u8	bw_40MHz=0, short_GI_20=0, short_GI_40=0, cbw40_enable=0;
 	u16	mcs_rate=0;
 	u8	rf_type = 0;
 	struct registry_priv *pregpriv = &adapter->registrypriv;
@@ -1327,9 +1329,8 @@ u16 rtw_get_network_max_rate(_adapter *adapter, WLAN_BSSID_EX *bss)
 	if((check_fwstate(pmlmepriv, _FW_LINKED) != _TRUE) 
 		&& (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) != _TRUE))
 		return 0;
-	
 
-	p = rtw_get_ie(&bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, bss->IELength-12);
+	p = rtw_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->IELength-12);
 	if(p && ht_ielen>0)
 	{
 		ht_cap = _TRUE;	
@@ -1337,30 +1338,47 @@ u16 rtw_get_network_max_rate(_adapter *adapter, WLAN_BSSID_EX *bss)
 	
 		_rtw_memcpy(&mcs_rate , pht_capie->supp_mcs_set, 2);
 
-		bw_40MHz = (pht_capie->cap_info&IEEE80211_HT_CAP_SUP_WIDTH) ? 1:0;
-		short_GI = (pht_capie->cap_info&(IEEE80211_HT_CAP_SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1:0;
+		//bw_40MHz = (pht_capie->cap_info&IEEE80211_HT_CAP_SUP_WIDTH) ? 1:0;
+		//cur_bwmod is updated by beacon, pmlmeinfo is updated by association response
+		bw_40MHz = (pmlmeext->cur_bwmode && (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH & pmlmeinfo->HT_info.infos[0])) ? 1:0;
+		
+		//short_GI = (pht_capie->cap_info&(IEEE80211_HT_CAP_SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1:0;
+		short_GI_20 = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info&IEEE80211_HT_CAP_SGI_20) ? 1:0;
+		short_GI_40 = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info&IEEE80211_HT_CAP_SGI_40) ? 1:0;
 	}
 
-	while( (bss->SupportedRates[i]!=0) && (bss->SupportedRates[i]!=0xFF))
+	while( (pcur_bss->SupportedRates[i]!=0) && (pcur_bss->SupportedRates[i]!=0xFF))
 	{
-		rate = bss->SupportedRates[i]&0x7F;
+		rate = pcur_bss->SupportedRates[i]&0x7F;
 		if(rate>max_rate)
 			max_rate = rate;
 		i++;
 	}
 
-	//TODO: should consider case of WEP and TKIP
 	if(ht_cap == _TRUE)
 	{
 		adapter->HalFunc.GetHwRegHandler(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if(rf_type == RF_1T1R)
-			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);				
+
+		if( pmlmeext->cur_channel > 14 )
+		{
+			if( pregistrypriv->cbw40_enable & BIT(1) )
+				cbw40_enable = 1;
+		}
 		else
-			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
+			if( pregistrypriv->cbw40_enable & BIT(0) )
+				cbw40_enable = 1;
+
+		max_rate = rtw_mcs_rate(
+			rf_type,
+			bw_40MHz & cbw40_enable, 
+			short_GI_20,
+			short_GI_40,
+			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
+		);
 	}
 	else
 	{
-		max_rate/=2;
+		max_rate = max_rate*10/2;
 	}
 
 	return max_rate;

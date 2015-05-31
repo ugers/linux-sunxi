@@ -15,8 +15,8 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * 
-******************************************************************************/
+ *
+ ******************************************************************************/
 #ifndef __STA_INFO_H_
 #define __STA_INFO_H_
 
@@ -26,12 +26,7 @@
 #include <wifi.h>
 
 #define IBSS_START_MAC_ID	2
-#ifdef SUPPORT_64_STA
-#define NUM_STA 64
-#else
 #define NUM_STA 32
-#endif
-#define FW_CTRL_MACID 32
 #define NUM_ACL 64
 
 
@@ -78,7 +73,7 @@ struct TDLS_PeerKey {
 	u8 kck[16]; /* TPK-KCK */
 	u8 tk[16]; /* TPK-TK; only CCMP will be used */
 } ;
-#endif
+#endif //CONFIG_TDLS
 
 struct sta_info {
 
@@ -133,7 +128,6 @@ struct sta_info {
 	_timer	TPK_timer;
 	struct TDLS_PeerKey	tpk;
 	_adapter *padapter;
-	u8	cam_entry;
 	u16	stat_code;
 	u8	off_ch;
 	u16	ch_switch_time;
@@ -148,7 +142,7 @@ struct sta_info {
 	_timer alive_timer2;
 	u8 timer_flag;
 	u8 alive_count;
-#endif
+#endif //CONFIG_TDLS
 
 	//for A-MPDU TX, ADDBA timeout check	
 	_timer addba_retry_timer;
@@ -250,7 +244,8 @@ struct sta_info {
 	//for DM
 	RSSI_STA	 rssi_stat;
 	
-
+        /* To store the sequence number of received management frame */
+	u16 RxMgmtFrameSeqNum;
 };
 
 #define sta_rx_pkts(sta) \

@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __RTW_CMD_H_
 #define __RTW_CMD_H_
 
@@ -160,6 +159,7 @@ enum rtw_drvextra_cmd_id
 	P2P_PS_WK_CID,
 	P2P_PROTO_WK_CID,
 	CHECK_HIQ_WK_CID,//for softap mode, check hi queue if empty
+	INTEl_WIDI_WK_CID,
 	MAX_WK_CID
 };
 
@@ -320,6 +320,7 @@ when shared key ==> algorithm/keyid
 struct set_stakey_parm {
 	u8	addr[ETH_ALEN];
 	u8	algorithm;
+	u8 	id;// currently for erasing cam entry if algorithm == _NO_PRIVACY_ 
 	u8	key[16];
 };
 
@@ -913,6 +914,7 @@ extern u8 rtw_createbss_cmd(_adapter  *padapter);
 extern u8 rtw_createbss_cmd_ex(_adapter  *padapter, unsigned char *pbss, unsigned int sz);
 extern u8 rtw_setphy_cmd(_adapter  *padapter, u8 modem, u8 ch);
 extern u8 rtw_setstakey_cmd(_adapter  *padapter, u8 *psta, u8 unicast_key);
+extern u8 rtw_clearstakey_cmd(_adapter *padapter, u8 *psta, u8 entry, u8 enqueue);
 extern u8 rtw_joinbss_cmd(_adapter  *padapter, struct wlan_network* pnetwork);
 extern u8 rtw_disassoc_cmd(_adapter  *padapter);
 extern u8 rtw_setopmode_cmd(_adapter  *padapter, NDIS_802_11_NETWORK_INFRASTRUCTURE networktype);
@@ -1041,7 +1043,7 @@ enum rtw_h2c_cmd
 	
 	GEN_CMD_CODE(_SetChannelPlan), /*59*/
 	GEN_CMD_CODE(_LedBlink), /*60*/
-	
+
 	GEN_CMD_CODE(_SetChannelSwitch), /*61*/
 	GEN_CMD_CODE(_TDLS), /*62*/
 	
@@ -1123,6 +1125,7 @@ struct _cmd_callback 	rtw_cmd_callback[] =
 	{GEN_CMD_CODE(_Set_H2C_MSG), NULL},/*58*/
 	{GEN_CMD_CODE(_SetChannelPlan), NULL},/*59*/
 	{GEN_CMD_CODE(_LedBlink), NULL},/*60*/
+	
 	{GEN_CMD_CODE(_SetChannelSwitch), NULL},/*61*/
 	{GEN_CMD_CODE(_TDLS), NULL},/*62*/
 };

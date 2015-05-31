@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __RTW_MLME_EXT_H_
 #define __RTW_MLME_EXT_H_
 
@@ -41,8 +40,8 @@
 
 #define LINKED_TO (1) //unit:2 sec, 1x2=2 sec
 
-#define REAUTH_LIMIT	(2)
-#define REASSOC_LIMIT	(2)
+#define REAUTH_LIMIT	(4)
+#define REASSOC_LIMIT	(4)
 #define READDBA_LIMIT	(2)
 
 //#define	IOCMD_REG0		0x10250370		 	
@@ -82,6 +81,16 @@
 #define		_54M_RATE_	11
 
 
+extern unsigned char RTW_WPA_OUI[];
+extern unsigned char WMM_OUI[];
+extern unsigned char WPS_OUI[];
+extern unsigned char WFD_OUI[];
+extern unsigned char P2P_OUI[];
+
+extern unsigned char WMM_INFO_OUI[];
+extern unsigned char WMM_PARA_OUI[];
+
+
 //
 // Channel Plan Type.
 // Note: 
@@ -113,7 +122,7 @@ typedef enum _RT_CHANNEL_DOMAIN
 	RT_CHANNEL_DOMAIN_FCC_NO_DFS = 0x11,
 	RT_CHANNEL_DOMAIN_JAPAN_NO_DFS = 0x12,
 	RT_CHANNEL_DOMAIN_WORLD_WIDE_5G = 0x13,
-	RT_CHANNEL_DOMAIN_TAIWAN_NO_DFS = 0x14,
+	RT_CHANNEL_DOMAIN_TAIWAN_NO_DFS = 0x14,	
 
 	//===== new channel plan mapping, (2GDOMAIN_5GDOMAIN) =====//
 	RT_CHANNEL_DOMAIN_WORLD_NULL = 0x20,
@@ -270,33 +279,6 @@ struct	ss_res
 #define	WIFI_FW_LINKING_STATE		(WIFI_FW_AUTH_NULL | WIFI_FW_AUTH_STATE | WIFI_FW_AUTH_SUCCESS |WIFI_FW_ASSOC_STATE)
 
 #ifdef CONFIG_TDLS
-/* TDLS STA state */
-#define	UN_TDLS_STATE					0x00000000	//default state
-#define	TDLS_INITIATOR_STATE			0x10000000
-#define	TDLS_RESPONDER_STATE			0x20000000
-#define	TDLS_LINKED_STATE				0x40000000
-#define	TDLS_CH_SWITCH_ON_STATE		0x01000000
-#define	TDLS_PEER_AT_OFF_STATE		0x02000000	//could send pkt on target ch
-#define	TDLS_AT_OFF_CH_STATE			0x04000000
-#define	TDLS_CH_SW_INITIATOR_STATE	0x08000000	//avoiding duplicated or unconditional ch. switch rsp.
-#define	TDLS_APSD_CHSW_STATE		0x00100000	//in APSD and want to setup channel switch
-#define	TDLS_PEER_SLEEP_STATE		0x00200000	//peer sta is sleeping
-#define	TDLS_SW_OFF_STATE			0x00400000	//terminate channel swithcing
-#define	TDLS_ALIVE_STATE				0x00010000	//Check if peer sta is alived.
-
-#define	TPK_RESEND_COUNT				301
-#define 	CH_SWITCH_TIME				10
-#define 	CH_SWITCH_TIMEOUT			30
-#define	TDLS_STAY_TIME				500
-#define	TDLS_SIGNAL_THRESH			0x20
-#define	TDLS_WATCHDOG_PERIOD		10	//Periodically sending tdls discovery request in TDLS_WATCHDOG_PERIOD * 2 sec
-#define	TDLS_ALIVE_TIMER_PH1			5000
-#define	TDLS_ALIVE_TIMER_PH2			2000
-#define	TDLS_STAY_TIME				500
-#define	TDLS_HANDSHAKE_TIME			5000
-#define	TDLS_ALIVE_COUNT				3
-
-
 // 1: Write RCR DATA BIT
 // 2: Issue peer traffic indication
 // 3: Go back to the channel linked with AP, terminating channel switch procedure
@@ -308,6 +290,8 @@ struct	ss_res
 // 9: Set channel back to off channel
 // 10: Restore RCR DATA BIT
 // 11: Check alive
+// 12: Check alive
+// 13: Free TDLS sta
 enum TDLS_option
 {
 	TDLS_WRCR			= 	1,
@@ -326,7 +310,7 @@ enum TDLS_option
 	maxTDLS,
 };
 
-#endif
+#endif //CONFIG_TDLS
 
 struct FW_Sta_Info
 {
@@ -336,6 +320,30 @@ struct FW_Sta_Info
 	u32	retry;
 	NDIS_802_11_RATES_EX  SupportedRates;
 };
+
+/*
+ * Usage:
+ * When one iface acted as AP mode and the other iface is STA mode and scanning, 
+ * it should switch back to AP's operating channel periodically.
+ * Parameters info:
+ * When the driver scanned RTW_SCAN_NUM_OF_CH channels, it would switch back to AP's operating channel for
+ * RTW_STAY_AP_CH_MILLISECOND * SURVEY_TO milliseconds.
+ * Example:
+ * For chip supports 2.4G + 5GHz and AP mode is operating in channel 1, 
+ * RTW_SCAN_NUM_OF_CH is 8, RTW_STAY_AP_CH_MILLISECOND is 3 and SURVEY_TO is 100.
+ * When it's STA mode gets set_scan command, 
+ * it would 
+ * 1. Doing the scan on channel 1.2.3.4.5.6.7.8 
+ * 2. Back to channel 1 for 300 milliseconds
+ * 3. Go through doing site survey on channel 9.10.11.36.40.44.48.52
+ * 4. Back to channel 1 for 300 milliseconds
+ * 5. ... and so on, till survey done.
+ */
+#if defined CONFIG_STA_MODE_SCAN_UNDER_AP_MODE && defined CONFIG_CONCURRENT_MODE
+#define RTW_SCAN_NUM_OF_CH			8
+#define RTW_STAY_AP_CH_MILLISECOND	3	// this value is a multiplier,for example, when this value is 3, it would stay AP's op ch for 
+											// 3 * SURVEY_TO millisecond. 
+#endif //defined CONFIG_STA_MODE_SCAN_UNDER_AP_MODE && defined CONFIG_CONCURRENT_MODE
 
 struct mlme_ext_info
 {
@@ -381,6 +389,10 @@ struct mlme_ext_info
 	struct HT_info_element		HT_info;
 	WLAN_BSSID_EX			network;//join network or bss_network, if in ap mode, it is the same to cur_network.network
 	struct FW_Sta_Info		FW_sta_info[NUM_STA];
+
+#ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	u8 scan_cnt;
+#endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 };
 
 // The channel information about this channel including joining, scanning, and power constraints.
@@ -424,7 +436,8 @@ struct mlme_ext_priv
 	//_timer		ADDBA_timer;
 	u16			chan_scan_time;
 
-	u8 scan_abort;
+	u8	scan_abort;
+	u8	tx_rate; // TXRATE when USERATE is set.
 
 	u32	retry; //retry for issue probereq
 	
@@ -437,6 +450,9 @@ struct mlme_ext_priv
 	//recv_decache check for Action_public frame 
 	u16 	 action_public_rxseq;
 
+#ifdef CONFIG_80211D
+	u8 update_channel_plan_by_ap_done;
+#endif
 };
 
 int init_mlme_ext_priv(_adapter* padapter);
@@ -444,12 +460,6 @@ int init_hw_mlme_ext(_adapter *padapter);
 void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
 extern void init_mlme_ext_timer(_adapter *padapter);
 extern void init_addba_retry_timer(_adapter *padapter, struct sta_info *psta);
-
-#ifdef CONFIG_TDLS
-int rtw_init_tdls_info(_adapter* padapter);
-void rtw_free_tdls_info(struct tdls_info *ptdlsinfo);
-#endif //CONFIG_TDLS
-
 extern struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
 
 //void fill_fwpriv(_adapter * padapter, struct fw_priv *pfwpriv);
@@ -462,8 +472,9 @@ void Save_DM_Func_Flag(_adapter *padapter);
 void Restore_DM_Func_Flag(_adapter *padapter);
 void Switch_DM_Func(_adapter *padapter, u8 mode, u8 enable);
 
-void Set_NETYPE1_MSR(_adapter *padapter, u8 type);
-void Set_NETYPE0_MSR(_adapter *padapter, u8 type);
+//void Set_NETYPE1_MSR(_adapter *padapter, u8 type);
+//void Set_NETYPE0_MSR(_adapter *padapter, u8 type);
+void Set_MSR(_adapter *padapter, u8 type);
 
 void set_channel_bwmode(_adapter *padapter, unsigned char channel, unsigned char channel_offset, unsigned short bwmode);
 void SelectChannel(_adapter *padapter, unsigned char channel);
@@ -500,7 +511,6 @@ int WMM_param_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs	pIE);
 #ifdef CONFIG_WFD
 int WFD_info_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs	pIE);
 #endif
-
 void WMMOnAssocRsp(_adapter *padapter);
 
 void HT_caps_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE);
@@ -517,6 +527,7 @@ void process_csa_ie(_adapter *padapter, u8 *pframe, uint len);
 void update_IOT_info(_adapter *padapter);
 void update_capinfo(PADAPTER Adapter, u16 updateCap);
 void update_wireless_mode(_adapter * padapter);
+void update_tx_basic_rate(_adapter *padapter, u8 modulation);
 void update_bmc_sta_support_rate(_adapter *padapter, u32 mac_id);
 int update_sta_support_rate(_adapter *padapter, u8* pvar_ie, uint var_ie_len, int cam_idx);
 
@@ -544,37 +555,20 @@ void report_add_sta_event(_adapter *padapter, unsigned char* MacAddr, int cam_id
 void beacon_timing_control(_adapter *padapter);
 extern u8 set_tx_beacon_cmd(_adapter*padapter);
 unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame);
+void update_mgnt_tx_rate(_adapter *padapter, u8 rate);
 void update_mgntframe_attrib(_adapter *padapter, struct pkt_attrib *pattrib);
 void dump_mgntframe(_adapter *padapter, struct xmit_frame *pmgntframe);
+s32 dump_mgntframe_and_wait(_adapter *padapter, struct xmit_frame *pmgntframe, int timeout_ms);
+s32 dump_mgntframe_and_wait_ack(_adapter *padapter, struct xmit_frame *pmgntframe);
 
 #ifdef CONFIG_P2P
 void issue_probersp_p2p(_adapter *padapter, unsigned char *da);
-void issue_p2p_provision_request( _adapter *padapter, u8* pinterface_raddr, u8* pssid, u8 ussidlen, u8* pdev_raddr);
+void issue_p2p_provision_request( _adapter *padapter, u8* pssid, u8 ussidlen, u8* pdev_raddr);
 void issue_p2p_GO_request(_adapter *padapter, u8* raddr);
 void issue_probereq_p2p(_adapter *padapter);
 void issue_p2p_invitation_response(_adapter *padapter, u8* raddr, u8 dialogToken, u8 success);
 void issue_p2p_invitation_request(_adapter *padapter, u8* raddr );
 #endif //CONFIG_P2P
-#ifdef CONFIG_TDLS
-void issue_nulldata_to_TDLS_peer_STA(_adapter *padapter, struct sta_info *ptdls_sta, unsigned int power_mode);
-void init_TPK_timer(_adapter *padapter, struct sta_info *psta);
-void init_ch_switch_timer(_adapter *padapter, struct sta_info *psta);
-void init_base_ch_timer(_adapter *padapter, struct sta_info *psta);
-void init_off_ch_timer(_adapter *padapter, struct sta_info *psta);
-void init_tdls_alive_timer(_adapter *padapter, struct sta_info *psta);
-void init_handshake_timer(_adapter *padapter, struct sta_info *psta);
-void free_tdls_sta(_adapter *padapter, struct sta_info *ptdls_sta);
-void issue_tdls_dis_req(_adapter *padapter, u8 *mac_addr);
-void issue_tdls_setup_req(_adapter *padapter, u8 *mac_addr);
-void issue_tdls_setup_rsp(_adapter *padapter, union recv_frame *precv_frame);
-void issue_tdls_setup_cfm(_adapter *padapter, union recv_frame *precv_frame);
-void issue_tdls_dis_rsp(_adapter * padapter, union recv_frame * precv_frame, u8 dialog);
-void issue_tdls_teardown(_adapter *padapter, u8 *mac_addr);
-void issue_tdls_peer_traffic_indication(_adapter *padapter, struct sta_info *psta);
-void issue_tdls_ch_switch_req(_adapter *padapter, u8 *mac_addr);
-void issue_tdls_ch_switch_rsp(_adapter *padapter, u8 *mac_addr);
-sint On_TDLS_Dis_Rsp(_adapter *adapter, union recv_frame *precv_frame);
-#endif
 void issue_beacon(_adapter *padapter);
 void issue_probersp(_adapter *padapter, unsigned char *da, u8 is_valid_p2p_probereq);
 void issue_assocreq(_adapter *padapter);
@@ -654,6 +648,8 @@ extern void correct_TSF(_adapter *padapter, struct mlme_ext_priv *pmlmeext);
 void init_mlme_ap_info(_adapter *padapter);
 void free_mlme_ap_info(_adapter *padapter);
 //void update_BCNTIM(_adapter *padapter);
+void rtw_add_bcn_ie(_adapter *padapter, WLAN_BSSID_EX *pnetwork, u8 index, u8 *data, u8 len);
+void rtw_remove_bcn_ie(_adapter *padapter, WLAN_BSSID_EX *pnetwork, u8 index);
 void update_beacon(_adapter *padapter, u8 ie_id, u8 *oui, u8 tx);
 void expire_timeout_chk(_adapter *padapter);	
 void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta);
@@ -668,6 +664,28 @@ void start_ap_mode(_adapter *padapter);
 void stop_ap_mode(_adapter *padapter);
 #endif
 #endif //end of CONFIG_AP_MODE
+
+
+#ifdef CONFIG_CONCURRENT_MODE
+ sint check_buddy_mlmeinfo_state(_adapter *padapter, u32 state);
+int concurrent_chk_start_clnt_join(_adapter *padapter);
+void concurrent_chk_joinbss_done(_adapter *padapter, int join_res);
+#endif //CONFIG_CONCURRENT_MODE
+
+#ifdef CONFIG_DUALMAC_CONCURRENT
+void	dc_SelectChannel(_adapter *padapter, unsigned char channel);
+void	dc_SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_offset);
+void	dc_set_channel_bwmode_disconnect(_adapter *padapter);
+u8	dc_handle_join_request(_adapter *padapter);
+void	dc_handle_join_done(_adapter *padapter, u8 join_res);
+sint	dc_check_fwstate(_adapter *padapter, sint fw_state);
+u8	dc_handle_site_survey(_adapter *padapter);
+void	dc_report_survey_event(_adapter *padapter, union recv_frame *precv_frame);
+void	dc_set_channel_bwmode_survey_done(_adapter *padapter);
+void	dc_set_ap_channel_bandwidth(_adapter *padapter, u8 channel, u8 channel_offset, u8 bwmode);
+void	dc_resume_xmit(_adapter *padapter);
+u8	dc_check_xmit(_adapter *padapter);
+#endif
 
 struct cmd_hdl {
 	uint	parmsize;
