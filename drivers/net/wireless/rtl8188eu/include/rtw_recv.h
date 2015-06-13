@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -96,26 +96,26 @@ struct smooth_rssi_data {
 };
 
 struct signal_stat {
-	u8	update_req;		//used to indicate
+	u8	update_req;		//used to indicate 
 	u8	avg_val;		//avg of valid elements
 	u32	total_num;		//num of valid elements
-	u32	total_val;		//sum of valid elements
+	u32	total_val;		//sum of valid elements	
 };
 #define MAX_PATH_NUM_92CS		2
 struct phy_info //ODM_PHY_INFO_T
-{
-	u8		RxPWDBAll;
-	u8		SignalQuality;	 // in 0-100 index.
+{	
+	u8		RxPWDBAll;	
+	u8		SignalQuality;	 // in 0-100 index. 
 	u8		RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; //EVM
 	u8		RxMIMOSignalStrength[MAX_PATH_NUM_92CS];// in 0~100 index
 //#if (DM_ODM_SUPPORT_TYPE &  (ODM_MP|ODM_CE))
 	s8		RxPower; // in dBm Translate from PWdB
 	s8		RecvSignalPower;// Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures.
-	u8		BTRxRSSIPercentage;
+	u8		BTRxRSSIPercentage;	
 	u8		SignalStrength; // in 0-100 index.
 	u8		RxPwr[MAX_PATH_NUM_92CS];//per-path's pwdb
 	u8		RxSNR[MAX_PATH_NUM_92CS];//per-path's SNR
-//#endif
+//#endif	
 };
 
 
@@ -143,12 +143,16 @@ struct rx_pkt_attrib	{
 	u8	crc_err;
 	u8	icv_err;
 
+	u16 eth_type;
+
 	u8 	dst[ETH_ALEN];
 	u8 	src[ETH_ALEN];
 	u8 	ta[ETH_ALEN];
 	u8 	ra[ETH_ALEN];
 	u8 	bssid[ETH_ALEN];
-
+	
+	u8 ack_policy;
+	
 //#ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 	u8	tcpchk_valid; // 0: invalid, 1: valid
 	u8	ip_chkrpt; //0: incorrect, 1: correct
@@ -166,10 +170,10 @@ struct rx_pkt_attrib	{
 	u8	signal_qual;
 	s8	rx_mimo_signal_qual[2];
 	u8	signal_strength;
-	u32	RxPWDBAll;
+	u32	RxPWDBAll;	
 	s32	RecvSignalPower;
 */
-	struct phy_info phy_info;
+	struct phy_info phy_info;	
 };
 
 
@@ -579,7 +583,7 @@ __inline static u8 *recvframe_put(union recv_frame *precvframe, sint sz)
 
 	//used for append sz bytes from ptr to rx_tail, update rx_tail and return the updated rx_tail to the caller
 	//after putting, rx_tail must be still larger than rx_end.
-	unsigned char * prev_rx_tail;
+ 	unsigned char * prev_rx_tail;
 
 	if(precvframe==NULL)
 		return NULL;
@@ -701,8 +705,8 @@ __inline static s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 	s32	SignalPower; // in dBm.
 
 	// Translate to dBm (x=0.5y-95).
-	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1);
-	SignalPower -= 95;
+	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1); 
+	SignalPower -= 95; 
 
 	return SignalPower;
 }
@@ -715,3 +719,4 @@ extern void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv);
 extern void  mgt_dispatcher(_adapter *padapter, union recv_frame *precv_frame);
 
 #endif
+

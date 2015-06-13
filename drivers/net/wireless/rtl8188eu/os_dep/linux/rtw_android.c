@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -93,11 +93,16 @@ typedef struct cmd_tlv {
 #endif /* PNO_SUPPORT */
 
 typedef struct android_wifi_priv_cmd {
+
+#ifdef CONFIG_COMPAT
+	compat_uptr_t buf;
+#else
 	char *buf;
+#endif
+
 	int used_len;
 	int total_len;
 } android_wifi_priv_cmd;
-
 
 /**
  * Local (static) functions and variables
@@ -224,19 +229,19 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 	for(cmd_num=0 ; cmd_num<ANDROID_WIFI_CMD_MAX; cmd_num++)
 		if(0 == strnicmp(cmdstr , android_wifi_cmd_str[cmd_num], strlen(android_wifi_cmd_str[cmd_num])) )
 			break;
-
+		
 	return cmd_num;
 }
 
 int rtw_android_get_rssi(struct net_device *net, char *command, int total_len)
 {
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(net);
-	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);	
 	struct	wlan_network	*pcur_network = &pmlmepriv->cur_network;
 	int bytes_written = 0;
 
-	if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) {
-		bytes_written += snprintf(&command[bytes_written], total_len, "%s rssi %d",
+	if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) {	
+		bytes_written += snprintf(&command[bytes_written], total_len, "%s rssi %d", 
 			pcur_network->network.Ssid.Ssid, padapter->recvpriv.rssi);
 	}
 
@@ -246,12 +251,12 @@ int rtw_android_get_rssi(struct net_device *net, char *command, int total_len)
 int rtw_android_get_link_speed(struct net_device *net, char *command, int total_len)
 {
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(net);
-	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
+	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);	
 	struct	wlan_network	*pcur_network = &pmlmepriv->cur_network;
 	int bytes_written = 0;
 	u16 link_speed = 0;
 
-	link_speed = rtw_get_network_max_rate(padapter, &pcur_network->network);
+	link_speed = rtw_get_network_max_rate(padapter, &pcur_network->network);	
 	bytes_written = snprintf(command, total_len, "LinkSpeed %d", link_speed);
 
 	return bytes_written;
@@ -261,7 +266,7 @@ int rtw_android_get_macaddr(struct net_device *net, char *command, int total_len
 {
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
 	int bytes_written = 0;
-
+	
 	bytes_written = snprintf(command, total_len, "Macaddr = "MAC_FMT, MAC_ARG(net->dev_addr));
 	return bytes_written;
 }
@@ -271,7 +276,7 @@ int rtw_android_set_country(struct net_device *net, char *command, int total_len
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
 	char *country_code = command + strlen(android_wifi_cmd_str[ANDROID_WIFI_CMD_COUNTRY]) + 1;
 	int ret;
-
+	
 	ret = rtw_set_country(adapter, country_code);
 
 	return (ret==_SUCCESS)?0:-1;
@@ -284,7 +289,7 @@ int rtw_android_get_p2p_dev_addr(struct net_device *net, char *command, int tota
 
 	//We use the same address as our HW MAC address
 	_rtw_memcpy(command, net->dev_addr, ETH_ALEN);
-
+	
 	bytes_written = ETH_ALEN;
 	return bytes_written;
 }
@@ -298,7 +303,7 @@ int rtw_android_set_block(struct net_device *net, char *command, int total_len)
 	#ifdef CONFIG_IOCTL_CFG80211
 	wdev_to_priv(adapter->rtw_wdev)->block = (*block_value=='0')?_FALSE:_TRUE;
 	#endif
-
+	
 	return 0;
 }
 
@@ -320,6 +325,8 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		ret = -EFAULT;
 		goto exit;
 	}
+	
+	//DBG_871X("%s priv_cmd.buf=%p priv_cmd.total_len=%d  priv_cmd.used_len=%d\n",__func__,priv_cmd.buf,priv_cmd.total_len,priv_cmd.used_len);
 	command = kmalloc(priv_cmd.total_len, GFP_KERNEL);
 	if (!command)
 	{
@@ -327,7 +334,13 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		ret = -ENOMEM;
 		goto exit;
 	}
-	if (copy_from_user(command, priv_cmd.buf, priv_cmd.total_len)) {
+
+	if (!access_ok(VERIFY_READ, priv_cmd.buf, priv_cmd.total_len)){
+	 	DBG_871X("%s: failed to access memory\n", __FUNCTION__);
+		ret = -EFAULT;
+		goto exit;
+	 }
+	if (copy_from_user(command, (void *)priv_cmd.buf, priv_cmd.total_len)) {
 		ret = -EFAULT;
 		goto exit;
 	}
@@ -336,7 +349,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		, __FUNCTION__, command, ifr->ifr_name);
 
 	cmd_num = rtw_android_cmdstr_to_num(command);
-
+	
 	switch(cmd_num) {
 	case ANDROID_WIFI_CMD_START:
 		//bytes_written = wl_android_wifi_on(net);
@@ -357,14 +370,14 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_STOP:
 		//bytes_written = wl_android_wifi_off(net);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_SCAN_ACTIVE:
 		rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_ACTIVE);
 		break;
 	case ANDROID_WIFI_CMD_SCAN_PASSIVE:
 		rtw_set_scan_mode((_adapter *)rtw_netdev_priv(net), SCAN_PASSIVE);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_RSSI:
 		bytes_written = rtw_android_get_rssi(net, command, priv_cmd.total_len);
 		break;
@@ -375,11 +388,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_MACADDR:
 		bytes_written = rtw_android_get_macaddr(net, command, priv_cmd.total_len);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_BLOCK:
 		bytes_written = rtw_android_set_block(net, command, priv_cmd.total_len);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_RXFILTER_START:
 		//bytes_written = net_os_set_packet_filter(net, 1);
 		break;
@@ -394,7 +407,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		//int filter_num = *(command + strlen(CMD_RXFILTER_REMOVE) + 1) - '0';
 		//bytes_written = net_os_rxfilter_add_remove(net, FALSE, filter_num);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_BTCOEXSCAN_START:
 		/* TBD: BTCOEXSCAN-START */
 		break;
@@ -413,11 +426,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #endif
 		#endif
 		break;
-
+		
 	case ANDROID_WIFI_CMD_SETSUSPENDOPT:
 		//bytes_written = wl_android_set_suspendopt(net, command, priv_cmd.total_len);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_SETBAND:
 		//uint band = *(command + strlen(CMD_SETBAND) + 1) - '0';
 		//bytes_written = wldev_set_band(net, band);
@@ -425,11 +438,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_GETBAND:
 		//bytes_written = wl_android_get_band(net, command, priv_cmd.total_len);
 		break;
-
+		
 	case ANDROID_WIFI_CMD_COUNTRY:
 		bytes_written = rtw_android_set_country(net, command, priv_cmd.total_len);
 		break;
-
+		
 #ifdef PNO_SUPPORT
 	case ANDROID_WIFI_CMD_PNOSSIDCLR_SET:
 		//bytes_written = dhd_dev_pno_reset(net);
@@ -457,7 +470,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		//int skip = strlen(CMD_P2P_SET_PS) + 1;
 		//bytes_written = wl_cfg80211_set_p2p_ps(net, command + skip, priv_cmd.total_len - skip);
 		break;
-
+		
 #ifdef CONFIG_IOCTL_CFG80211
 	case ANDROID_WIFI_CMD_SET_AP_WPS_P2P_IE:
 	{
@@ -484,7 +497,7 @@ response:
 			bytes_written++;
 		}
 		priv_cmd.used_len = bytes_written;
-		if (copy_to_user(priv_cmd.buf, command, bytes_written)) {
+		if (copy_to_user((void *)priv_cmd.buf, command, bytes_written)) {
 			DBG_871X("%s: failed to copy data to user buffer\n", __FUNCTION__);
 			ret = -EFAULT;
 		}
@@ -710,3 +723,4 @@ static void wifi_del_dev(void)
 	platform_driver_unregister(&wifi_device_legacy);
 }
 #endif /* defined(CONFIG_WIFI_CONTROL_FUNC) */
+

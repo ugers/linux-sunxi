@@ -160,13 +160,13 @@ _func_enter_;
 	{
 		padapter = padapter->pbuddy_adapter;
 	}
-
+	
 	pHalData = GET_HAL_DATA(padapter);
 	isnchip = IS_NORMAL_CHIP(pHalData->VersionID);
-
+	
 
 	_enter_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);
-
+	
 #endif
 
 	if (!pCmdBuffer) {
@@ -193,9 +193,9 @@ _func_enter_;
 		{
 			_rtw_memcpy((u8*)(&h2c_cmd)+1, pCmdBuffer, CmdLen );
 		}
-		else{
+		else{			
 			_rtw_memcpy((u8*)(&h2c_cmd)+1, pCmdBuffer,3);
-			ext_cmd_len = CmdLen-3;
+			ext_cmd_len = CmdLen-3;	
 			_rtw_memcpy((u8*)(&h2c_cmd_ex), pCmdBuffer+3,ext_cmd_len );
 
 			//Write Ext command
@@ -219,7 +219,7 @@ _func_enter_;
 		h2c_cmd = le32_to_cpu( h2c_cmd );
 		rtw_write32(padapter,msgbox_addr, h2c_cmd);
 		#endif
-
+		
 		if(!isnchip){//for Test chip
 			if(! (rtw_read8(padapter, REG_HMETFR) & BIT(h2c_box_num))){
 				DBG_8192C("Chip test  - check fw write failed, write again..\n");
@@ -242,7 +242,7 @@ _func_enter_;
 exit:
 
 #ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);
+	_exit_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);	
 #endif
 
 _func_exit_;
@@ -277,7 +277,7 @@ u8 rtl8192c_set_FwSelectSuspend_cmd(_adapter *padapter ,u8 bfwpoll, u16 period)
 	DBG_8192C("==>%s bfwpoll(%x)\n",__FUNCTION__,bfwpoll);
 	param.gpio_period = period;//Polling GPIO_11 period time
 	param.ROFOn = (_TRUE == bfwpoll)?1:0;
-	FillH2CCmd_88E(padapter, SELECTIVE_SUSPEND_ROF_CMD, sizeof(param), (u8*)(&param));
+	FillH2CCmd_88E(padapter, SELECTIVE_SUSPEND_ROF_CMD, sizeof(param), (u8*)(&param));		
 	return res;
 }
 #endif //CONFIG_AUTOSUSPEND && SUPPORT_HW_RFOFF_DETECTED
@@ -313,13 +313,13 @@ _func_enter_;
 	if(pHalData->fw_ractrl == _TRUE){
 		_rtw_memset(buf, 0, 3);
 		mask = cpu_to_le32( mask );
-		_rtw_memcpy(buf, &mask, 3);
+		_rtw_memcpy(buf, &mask, 3);		
 
 		FillH2CCmd_88E(padapter, H2C_DM_MACID_CFG, 3, buf);
 	}else{
 		DBG_8192C("==>%s fw dont support RA \n",__FUNCTION__);
 		res=_FAIL;
-	}
+	}	
 
 _func_exit_;
 
@@ -346,10 +346,10 @@ void rtl8188e_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg)
 
 	if (shortGIrate==_TRUE)
 		init_rate |= BIT(6);
-
+	
 
 	//rtw_write8(pAdapter, (REG_INIDATA_RATE_SEL+macid), (u8)init_rate);
-
+	
 	raid = (bitmap>>28) & 0x0f;
 
 	bitmap &= 0x0fffffff;
@@ -358,11 +358,11 @@ void rtl8188e_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8 arg)
 	ODM_RA_UpdateRateInfo_8188E(
 			&(pHalData->odmpriv),
 			macid,
-			raid,
+			raid, 
 			bitmap,
 			shortGIrate
 			);
-#endif
+#endif	
 
 }
 
@@ -414,7 +414,7 @@ _func_enter_;
 		H2CSetPwrMode.PwrState = 0x0C;// AllON(0x0C), RFON(0x04), RFOFF(0x00)
 
 	FillH2CCmd_88E(padapter, H2C_PS_PWR_MODE, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
-
+	
 
 _func_exit_;
 }
@@ -425,7 +425,7 @@ void rtl8188e_set_FwMediaStatus_cmd(PADAPTER padapter, u16 mstatus_rpt )
 	u16 mst_rpt = cpu_to_le16 (mstatus_rpt);
 	opmode = (u8) mst_rpt;
 	macid = (u8)(mst_rpt >> 8)  ;
-
+	
 	DBG_871X("### %s: MStatus=%x MACID=%d \n", __FUNCTION__,opmode,macid);
 	FillH2CCmd_88E(padapter, H2C_COM_MEDIA_STATUS_RPT, sizeof(mst_rpt), (u8 *)&mst_rpt);
 }
@@ -685,14 +685,14 @@ CheckFwRsvdPageContent(
 	HAL_DATA_TYPE*	pHalData = GET_HAL_DATA(Adapter);
 	u32	MaxBcnPageNum;
 
-	if(pHalData->FwRsvdPageStartOffset != 0)
-	{
-		/*MaxBcnPageNum = PageNum_128(pMgntInfo->MaxBeaconSize);
+ 	if(pHalData->FwRsvdPageStartOffset != 0)
+ 	{
+ 		/*MaxBcnPageNum = PageNum_128(pMgntInfo->MaxBeaconSize);
 		RT_ASSERT((MaxBcnPageNum <= pHalData->FwRsvdPageStartOffset),
 			("CheckFwRsvdPageContent(): The reserved page content has been"\
 			"destroyed by beacon!!! MaxBcnPageNum(%d) FwRsvdPageStartOffset(%d)\n!",
 			MaxBcnPageNum, pHalData->FwRsvdPageStartOffset));*/
-	}
+ 	}
 }
 
 //
@@ -796,7 +796,7 @@ static void SetFwRsvdPagePkt(PADAPTER padapter, BOOLEAN bDLFinished)
 	//3 (5) Qos null data
 	RsvdPageLoc.LocQosNull = PageNum;
 	ConstructNullFunctionData(
-		padapter,
+		padapter, 
 		&ReservedPagePacket[BufIndex],
 		&QosNullLength,
 		get_my_bssid(&pmlmeinfo->network),
@@ -813,7 +813,7 @@ static void SetFwRsvdPagePkt(PADAPTER padapter, BOOLEAN bDLFinished)
 	//3 (6) BT Qos null data
 	RsvdPageLoc.LocBTQosNull = PageNum;
 	ConstructNullFunctionData(
-		padapter,
+		padapter, 
 		&ReservedPagePacket[BufIndex],
 		&BTQosNullLength,
 		get_my_bssid(&pmlmeinfo->network),
@@ -850,8 +850,9 @@ void rtl8188e_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus)
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	BOOLEAN		bSendBeacon=_FALSE;
-	u8		BcnValidReg;
-	u8		count=0, DLBcnCount=0;
+	BOOLEAN		bcn_valid = _FALSE;
+	u8	DLBcnCount=0;
+	u32 poll = 0;
 
 _func_enter_;
 
@@ -871,7 +872,7 @@ _func_enter_;
 		//Set REG_CR bit 8. DMA beacon by SW.
 		pHalData->RegCR_1 |= BIT0;
 		rtw_write8(padapter,  REG_CR+1, pHalData->RegCR_1);
-
+		
 		// Disable Hw protection for a time which revserd for Hw sending beacon.
 		// Fix download reserved page packet fail that access collision with the protection time.
 		// 2010.05.11. Added by tynli.
@@ -888,75 +889,81 @@ _func_enter_;
 		rtw_write8(padapter, REG_FWHW_TXQ_CTRL+2, (pHalData->RegFwHwTxQCtrl&(~BIT6)));
 		pHalData->RegFwHwTxQCtrl &= (~BIT6);
 
+		// Clear beacon valid check bit.
+		padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_BCN_VALID, NULL);
+		DLBcnCount = 0;
+		poll = 0;
 		do
 		{
-			// Clear beacon valid check bit.
-			BcnValidReg = rtw_read8(padapter, REG_TDECTRL+2);
-			rtw_write8(padapter, REG_TDECTRL+2, (BcnValidReg|BIT0));
-
 			// download rsvd page.
 			SetFwRsvdPagePkt(padapter, _FALSE);
-
-			// check rsvd page download OK.
-			BcnValidReg = rtw_read8(padapter, REG_TDECTRL+2);
-			count=0;
-			while(!(BcnValidReg & BIT0) && count <20)
-			{
-				count++;
-				rtw_mdelay_os(10);
-				BcnValidReg = rtw_read8(padapter, REG_TDECTRL+2);
-			}
 			DLBcnCount++;
-		}while(!(BcnValidReg&BIT0) && DLBcnCount<5);
-
-		//RT_ASSERT((BcnValidReg&BIT0), ("HalDownloadRSVDPage88ES(): 1 Download RSVD page failed!\n"));
-		if(!(BcnValidReg&BIT0))
-			DBG_871X("HalDownloadRSVDPage(): 1 Download RSVD page failed!\n");
-
+			do
+			{
+				rtw_yield_os();
+				//rtw_mdelay_os(10);
+				// check rsvd page download OK.
+				padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_BCN_VALID, (u8*)(&bcn_valid));
+				poll++;
+			} while(!bcn_valid && (poll%10)!=0 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
+			
+		}while(!bcn_valid && DLBcnCount<=100 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
+		
+		//RT_ASSERT(bcn_valid, ("HalDownloadRSVDPage88ES(): 1 Download RSVD page failed!\n"));
+		if(padapter->bSurpriseRemoved || padapter->bDriverStopped)
+		{
+		}
+		else if(!bcn_valid)
+			DBG_871X("%s: 1 Download RSVD page failed! DLBcnCount:%u, poll:%u\n", __FUNCTION__ ,DLBcnCount, poll);
+		else
+			DBG_871X("%s: 1 Download RSVD success! DLBcnCount:%u, poll:%u\n", __FUNCTION__, DLBcnCount, poll);
 		//
 		// We just can send the reserved page twice during the time that Tx thread is stopped (e.g. pnpsetpower)
 		// becuase we need to free the Tx BCN Desc which is used by the first reserved page packet.
 		// At run time, we cannot get the Tx Desc until it is released in TxHandleInterrupt() so we will return
 		// the beacon TCB in the following code. 2011.11.23. by tynli.
 		//
-		//if((BcnValidReg & BIT0) && padapter->bEnterPnpSleep)
+		//if(bcn_valid && padapter->bEnterPnpSleep)
 		if(0)
 		{
-			rtw_write8(padapter, REG_TDECTRL+2, (BcnValidReg|BIT0)); // W1C bit0
 			if(bSendBeacon)
 			{
+				padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_BCN_VALID, NULL);
 				DLBcnCount = 0;
+				poll = 0;
 				do
 				{
-					rtw_write8(padapter, REG_TDECTRL+2, (BcnValidReg|BIT0)); // W1C bit0
-
 					SetFwRsvdPagePkt(padapter, _TRUE);
-
-					// check rsvd page download OK.
-					BcnValidReg = rtw_read8(padapter, REG_TDECTRL+2);
-					count=0;
-					while(!(BcnValidReg & BIT0) && count <20)
-					{
-						count++;
-						rtw_udelay_os(10);
-						BcnValidReg = rtw_read8(padapter, REG_TDECTRL+2);
-					}
 					DLBcnCount++;
-				}while(!(BcnValidReg&BIT0) && DLBcnCount<5);
-
-				//RT_ASSERT((BcnValidReg&BIT0), ("HalDownloadRSVDPage(): 2 Download RSVD page failed!\n"));
-				if(!(BcnValidReg&BIT0))
-					DBG_871X("HalDownloadRSVDPage(): 2 Download RSVD page failed!\n");
+					
+					do
+					{
+						rtw_yield_os();
+						//rtw_mdelay_os(10);
+						// check rsvd page download OK.
+						padapter->HalFunc.GetHwRegHandler(padapter, HW_VAR_BCN_VALID, (u8*)(&bcn_valid));
+						poll++;
+					} while(!bcn_valid && (poll%10)!=0 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
+				}while(!bcn_valid && DLBcnCount<=100 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
+				
+				//RT_ASSERT(bcn_valid, ("HalDownloadRSVDPage(): 2 Download RSVD page failed!\n"));
+				if(padapter->bSurpriseRemoved || padapter->bDriverStopped)
+				{
+				}
+				else if(!bcn_valid)
+					DBG_871X("%s: 2 Download RSVD page failed! DLBcnCount:%u, poll:%u\n", __FUNCTION__ ,DLBcnCount, poll);
+				else
+					DBG_871X("%s: 2 Download RSVD success! DLBcnCount:%u, poll:%u\n", __FUNCTION__, DLBcnCount, poll);
 			}
 		}
 
 		// Enable Bcn
 		SetBcnCtrlReg(padapter, BIT3, 0);
 		SetBcnCtrlReg(padapter, 0, BIT4);
-
+		
 		// To make sure that if there exists an adapter which would like to send beacon.
 		// If exists, the origianl value of 0x422[6] will be 1, we should check this to
-		// prevent from setting 0x422[6] to 0 after download reserved page, or it will cause
+		// prevent from setting 0x422[6] to 0 after download reserved page, or it will cause 
 		// the beacon cannot be sent by HW.
 		// 2010.06.23. Added by tynli.
 		if(bSendBeacon)
@@ -968,13 +975,13 @@ _func_enter_;
 		//
 		// Update RSVD page location H2C to Fw.
 		//
-		if(BcnValidReg&BIT0)
+		if(bcn_valid)
 		{
-			rtw_write8(padapter, REG_TDECTRL+2, (BcnValidReg|BIT0)); // W1C bit0
+			padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_BCN_VALID, NULL);
 			DBG_871X("Set RSVD page location to Fw.\n");
 			//FillH2CCmd88E(Adapter, H2C_88E_RSVDPAGE, H2C_RSVDPAGE_LOC_LENGTH, pMgntInfo->u1RsvdPageLoc);
 		}
-
+		
 		// Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli.
 		//if(!padapter->bEnterPnpSleep)
 		{
@@ -1028,7 +1035,7 @@ _func_enter_;
 				p2p_ps_offload->CTWindow_En = 1;
 				ctwindow = pwdinfo->ctwindow;
 				rtl8192c_set_p2p_ctw_period_cmd(padapter, ctwindow);
-
+				
 			}
 
 			// hw only support 2 set of NoA
@@ -1118,7 +1125,7 @@ int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame,
 
 	if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
 		goto exit;
-
+	
 	//adapter->HalFunc.mgnt_xmit(adapter, xmit_frame);
 	rtw_dump_xframe_sync(adapter, xmit_frame);
 
@@ -1166,7 +1173,7 @@ int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame,
 			//, rtw_read32(adapter, 0x134)
 		);
 		#if 0 //debug
-		rtw_write16(adapter, 0x1c4, 0x0000);
+		rtw_write16(adapter, 0x1c4, 0x0000); 
 		rtw_msleep_os(10);
 		DBG_871X("after reset, 0x1c4=0x%08x\n", rtw_read32(adapter, 0x1c4));
 		#endif
@@ -1191,3 +1198,4 @@ exit:
 
 }
 #endif //CONFIG_IOL
+

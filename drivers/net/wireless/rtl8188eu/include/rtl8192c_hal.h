@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -32,12 +32,13 @@
 #ifdef DBG_CONFIG_ERROR_DETECT
 #include "rtl8192c_sreset.h"
 #endif
+#include "rtw_efuse.h"
 
 #include "../hal/OUTSRC/odm_precomp.h"
 
 
 #ifdef CONFIG_PCI_HCI
-
+	
 	#define RTL819X_DEFAULT_RF_TYPE			RF_2T2R
 	//#define RTL819X_DEFAULT_RF_TYPE			RF_1T2R
 	#define RTL819X_TOTAL_RF_PATH				2
@@ -87,7 +88,7 @@
 	#define Rtl819XFwTSMCImageArray			Rtl8192CEFwTSMCImgArray
 	#define Rtl819XFwUMCACutImageArray			Rtl8192CEFwUMCACutImgArray
 	#define Rtl819XFwUMCBCutImageArray			Rtl8192CEFwUMCBCutImgArray
-
+	
 //	#define Rtl8723FwUMCImageArray				Rtl8192CEFwUMC8723ImgArray
 	#define Rtl819XMAC_Array					Rtl8192CEMAC_2T_Array
 	#define Rtl819XAGCTAB_2TArray				Rtl8192CEAGCTAB_2TArray
@@ -101,31 +102,31 @@
 	#define Rtl819XPHY_REG_Array_PG 			Rtl8192CEPHY_REG_Array_PG
 	#define Rtl819XPHY_REG_Array_MP 			Rtl8192CEPHY_REG_Array_MP
 
-	#define PHY_REG_2TArrayLength 				Rtl8192CEPHY_REG_2TArrayLength
-	#define PHY_REG_1TArrayLength 				Rtl8192CEPHY_REG_1TArrayLength
-	#define PHY_ChangeTo_1T1RArrayLength 		Rtl8192CEPHY_ChangeTo_1T1RArrayLength
-	#define PHY_ChangeTo_1T2RArrayLength  		Rtl8192CEPHY_ChangeTo_1T2RArrayLength
-	#define PHY_ChangeTo_2T2RArrayLength  		Rtl8192CEPHY_ChangeTo_2T2RArrayLength
-	#define PHY_REG_Array_PGLength  			Rtl8192CEPHY_REG_Array_PGLength
-	//#define PHY_REG_Array_PG_mCardLength 		Rtl8192CEPHY_REG_Array_PG_mCardLength
-	#define PHY_REG_Array_MPLength 			Rtl8192CEPHY_REG_Array_MPLength
-	#define PHY_REG_Array_MPLength 			Rtl8192CEPHY_REG_Array_MPLength
-	//#define PHY_REG_1T_mCardArrayLength 		Rtl8192CEPHY_REG_1T_mCardArrayLength
-	//#define PHY_REG_2T_mCardArrayLength  		Rtl8192CEPHY_REG_2T_mCardArrayLength
-	//#define PHY_REG_Array_PG_HPLength 			Rtl8192CEPHY_REG_Array_PG_HPLength
-	#define RadioA_2TArrayLength  				Rtl8192CERadioA_2TArrayLength
-	#define RadioB_2TArrayLength 				Rtl8192CERadioB_2TArrayLength
-	#define RadioA_1TArrayLength  				Rtl8192CERadioA_1TArrayLength
-	#define RadioB_1TArrayLength 				Rtl8192CERadioB_1TArrayLength
-	//#define RadioA_1T_mCardArrayLength 			Rtl8192CERadioA_1T_mCardArrayLength
-	//#define RadioB_1T_mCardArrayLength 			Rtl8192CERadioB_1T_mCardArrayLength
-	//#define RadioA_1T_HPArrayLength 				Rtl8192CERadioA_1T_HPArrayLength
-	#define RadioB_GM_ArrayLength 				Rtl8192CERadioB_GM_ArrayLength
-	#define MAC_2T_ArrayLength					Rtl8192CEMAC_2T_ArrayLength
-	#define MACPHY_Array_PGLength 				Rtl8192CEMACPHY_Array_PGLength
-	#define AGCTAB_2TArrayLength 				Rtl8192CEAGCTAB_2TArrayLength
-	#define AGCTAB_1TArrayLength 				Rtl8192CEAGCTAB_1TArrayLength
-	//#define AGCTAB_1T_HPArrayLength 			Rtl8192CEAGCTAB_1T_HPArrayLength
+	#define PHY_REG_2TArrayLength 				Rtl8192CEPHY_REG_2TArrayLength 
+	#define PHY_REG_1TArrayLength 				Rtl8192CEPHY_REG_1TArrayLength 
+	#define PHY_ChangeTo_1T1RArrayLength 		Rtl8192CEPHY_ChangeTo_1T1RArrayLength 
+	#define PHY_ChangeTo_1T2RArrayLength  		Rtl8192CEPHY_ChangeTo_1T2RArrayLength 
+	#define PHY_ChangeTo_2T2RArrayLength  		Rtl8192CEPHY_ChangeTo_2T2RArrayLength 
+	#define PHY_REG_Array_PGLength  			Rtl8192CEPHY_REG_Array_PGLength 
+	//#define PHY_REG_Array_PG_mCardLength 		Rtl8192CEPHY_REG_Array_PG_mCardLength 
+	#define PHY_REG_Array_MPLength 			Rtl8192CEPHY_REG_Array_MPLength 
+	#define PHY_REG_Array_MPLength 			Rtl8192CEPHY_REG_Array_MPLength 
+	//#define PHY_REG_1T_mCardArrayLength 		Rtl8192CEPHY_REG_1T_mCardArrayLength 
+	//#define PHY_REG_2T_mCardArrayLength  		Rtl8192CEPHY_REG_2T_mCardArrayLength 
+	//#define PHY_REG_Array_PG_HPLength 			Rtl8192CEPHY_REG_Array_PG_HPLength 
+	#define RadioA_2TArrayLength  				Rtl8192CERadioA_2TArrayLength 
+	#define RadioB_2TArrayLength 				Rtl8192CERadioB_2TArrayLength 
+	#define RadioA_1TArrayLength  				Rtl8192CERadioA_1TArrayLength 
+	#define RadioB_1TArrayLength 				Rtl8192CERadioB_1TArrayLength 
+	//#define RadioA_1T_mCardArrayLength 			Rtl8192CERadioA_1T_mCardArrayLength 
+	//#define RadioB_1T_mCardArrayLength 			Rtl8192CERadioB_1T_mCardArrayLength 
+	//#define RadioA_1T_HPArrayLength 				Rtl8192CERadioA_1T_HPArrayLength 
+	#define RadioB_GM_ArrayLength 				Rtl8192CERadioB_GM_ArrayLength 
+	#define MAC_2T_ArrayLength					Rtl8192CEMAC_2T_ArrayLength 
+	#define MACPHY_Array_PGLength 				Rtl8192CEMACPHY_Array_PGLength 
+	#define AGCTAB_2TArrayLength 				Rtl8192CEAGCTAB_2TArrayLength 
+	#define AGCTAB_1TArrayLength 				Rtl8192CEAGCTAB_1TArrayLength 
+	//#define AGCTAB_1T_HPArrayLength 			Rtl8192CEAGCTAB_1T_HPArrayLength 	
 
 #elif defined(CONFIG_USB_HCI)
 
@@ -147,7 +148,7 @@
 	#define RTL8188C_PHY_RADIO_A				"rtl8188CU\\radio_a.txt"
 	#define RTL8188C_PHY_RADIO_B				"rtl8188CU\\radio_b.txt"
 	#define RTL8188C_PHY_RADIO_A_mCard		"rtl8192CU\\radio_a_1T_mCard.txt"
-	#define RTL8188C_PHY_RADIO_B_mCard		"rtl8192CU\\radio_b_1T_mCard.txt"
+	#define RTL8188C_PHY_RADIO_B_mCard		"rtl8192CU\\radio_b_1T_mCard.txt" 
 	#define RTL8188C_PHY_RADIO_A_HP			"rtl8192CU\\radio_a_1T_HP.txt"
 	#define RTL8188C_AGC_TAB					"rtl8188CU\\AGC_TAB.txt"
 	#define RTL8188C_PHY_MACREG				"rtl8188CU\\MACREG.txt"
@@ -176,46 +177,46 @@
 	#define Rtl819XAGCTAB_1T_HPArray			Rtl8192CUAGCTAB_1T_HPArray
 	#define Rtl819XPHY_REG_2TArray				Rtl8192CUPHY_REG_2TArray
 	#define Rtl819XPHY_REG_1TArray				Rtl8192CUPHY_REG_1TArray
-	#define Rtl819XPHY_REG_1T_mCardArray		Rtl8192CUPHY_REG_1T_mCardArray
-	#define Rtl819XPHY_REG_2T_mCardArray		Rtl8192CUPHY_REG_2T_mCardArray
+	#define Rtl819XPHY_REG_1T_mCardArray		Rtl8192CUPHY_REG_1T_mCardArray 					
+	#define Rtl819XPHY_REG_2T_mCardArray		Rtl8192CUPHY_REG_2T_mCardArray	
 	#define Rtl819XPHY_REG_1T_HPArray			Rtl8192CUPHY_REG_1T_HPArray
 	#define Rtl819XRadioA_2TArray				Rtl8192CURadioA_2TArray
 	#define Rtl819XRadioA_1TArray				Rtl8192CURadioA_1TArray
-	#define Rtl819XRadioA_1T_mCardArray			Rtl8192CURadioA_1T_mCardArray
+	#define Rtl819XRadioA_1T_mCardArray			Rtl8192CURadioA_1T_mCardArray			
 	#define Rtl819XRadioB_2TArray				Rtl8192CURadioB_2TArray
-	#define Rtl819XRadioB_1TArray				Rtl8192CURadioB_1TArray
+	#define Rtl819XRadioB_1TArray				Rtl8192CURadioB_1TArray	
 	#define Rtl819XRadioB_1T_mCardArray			Rtl8192CURadioB_1T_mCardArray
-	#define Rtl819XRadioA_1T_HPArray			Rtl8192CURadioA_1T_HPArray
+	#define Rtl819XRadioA_1T_HPArray			Rtl8192CURadioA_1T_HPArray	
 	#define Rtl819XPHY_REG_Array_PG 			Rtl8192CUPHY_REG_Array_PG
-	#define Rtl819XPHY_REG_Array_PG_mCard 		Rtl8192CUPHY_REG_Array_PG_mCard
+	#define Rtl819XPHY_REG_Array_PG_mCard 		Rtl8192CUPHY_REG_Array_PG_mCard			
 	#define Rtl819XPHY_REG_Array_PG_HP			Rtl8192CUPHY_REG_Array_PG_HP
 	#define Rtl819XPHY_REG_Array_MP 			Rtl8192CUPHY_REG_Array_MP
 
-	#define PHY_REG_2TArrayLength 				Rtl8192CUPHY_REG_2TArrayLength
-	#define PHY_REG_1TArrayLength 				Rtl8192CUPHY_REG_1TArrayLength
-	#define PHY_ChangeTo_1T1RArrayLength 		Rtl8192CUPHY_ChangeTo_1T1RArrayLength
-	#define PHY_ChangeTo_1T2RArrayLength  		Rtl8192CUPHY_ChangeTo_1T2RArrayLength
-	#define PHY_ChangeTo_2T2RArrayLength  		Rtl8192CUPHY_ChangeTo_2T2RArrayLength
-	#define PHY_REG_Array_PGLength  			Rtl8192CUPHY_REG_Array_PGLength
-	#define PHY_REG_Array_PG_mCardLength 		Rtl8192CUPHY_REG_Array_PG_mCardLength
-	#define PHY_REG_Array_MPLength 			Rtl8192CUPHY_REG_Array_MPLength
-	#define PHY_REG_Array_MPLength 			Rtl8192CUPHY_REG_Array_MPLength
-	#define PHY_REG_1T_mCardArrayLength 		Rtl8192CUPHY_REG_1T_mCardArrayLength
-	#define PHY_REG_2T_mCardArrayLength  		Rtl8192CUPHY_REG_2T_mCardArrayLength
-	#define PHY_REG_Array_PG_HPLength 			Rtl8192CUPHY_REG_Array_PG_HPLength
-	#define RadioA_2TArrayLength  				Rtl8192CURadioA_2TArrayLength
-	#define RadioB_2TArrayLength 				Rtl8192CURadioB_2TArrayLength
-	#define RadioA_1TArrayLength  				Rtl8192CURadioA_1TArrayLength
-	#define RadioB_1TArrayLength 				Rtl8192CURadioB_1TArrayLength
-	#define RadioA_1T_mCardArrayLength 			Rtl8192CURadioA_1T_mCardArrayLength
-	#define RadioB_1T_mCardArrayLength 			Rtl8192CURadioB_1T_mCardArrayLength
-	#define RadioA_1T_HPArrayLength 				Rtl8192CURadioA_1T_HPArrayLength
-	#define RadioB_GM_ArrayLength 				Rtl8192CURadioB_GM_ArrayLength
-	#define MAC_2T_ArrayLength					Rtl8192CUMAC_2T_ArrayLength
-	#define MACPHY_Array_PGLength 				Rtl8192CUMACPHY_Array_PGLength
-	#define AGCTAB_2TArrayLength 				Rtl8192CUAGCTAB_2TArrayLength
-	#define AGCTAB_1TArrayLength 				Rtl8192CUAGCTAB_1TArrayLength
-	#define AGCTAB_1T_HPArrayLength 			Rtl8192CUAGCTAB_1T_HPArrayLength
+	#define PHY_REG_2TArrayLength 				Rtl8192CUPHY_REG_2TArrayLength 
+	#define PHY_REG_1TArrayLength 				Rtl8192CUPHY_REG_1TArrayLength 
+	#define PHY_ChangeTo_1T1RArrayLength 		Rtl8192CUPHY_ChangeTo_1T1RArrayLength 
+	#define PHY_ChangeTo_1T2RArrayLength  		Rtl8192CUPHY_ChangeTo_1T2RArrayLength 
+	#define PHY_ChangeTo_2T2RArrayLength  		Rtl8192CUPHY_ChangeTo_2T2RArrayLength 
+	#define PHY_REG_Array_PGLength  			Rtl8192CUPHY_REG_Array_PGLength 
+	#define PHY_REG_Array_PG_mCardLength 		Rtl8192CUPHY_REG_Array_PG_mCardLength 
+	#define PHY_REG_Array_MPLength 			Rtl8192CUPHY_REG_Array_MPLength 
+	#define PHY_REG_Array_MPLength 			Rtl8192CUPHY_REG_Array_MPLength 
+	#define PHY_REG_1T_mCardArrayLength 		Rtl8192CUPHY_REG_1T_mCardArrayLength 
+	#define PHY_REG_2T_mCardArrayLength  		Rtl8192CUPHY_REG_2T_mCardArrayLength 
+	#define PHY_REG_Array_PG_HPLength 			Rtl8192CUPHY_REG_Array_PG_HPLength 
+	#define RadioA_2TArrayLength  				Rtl8192CURadioA_2TArrayLength 
+	#define RadioB_2TArrayLength 				Rtl8192CURadioB_2TArrayLength 
+	#define RadioA_1TArrayLength  				Rtl8192CURadioA_1TArrayLength 
+	#define RadioB_1TArrayLength 				Rtl8192CURadioB_1TArrayLength 
+	#define RadioA_1T_mCardArrayLength 			Rtl8192CURadioA_1T_mCardArrayLength 
+	#define RadioB_1T_mCardArrayLength 			Rtl8192CURadioB_1T_mCardArrayLength 
+	#define RadioA_1T_HPArrayLength 				Rtl8192CURadioA_1T_HPArrayLength 
+	#define RadioB_GM_ArrayLength 				Rtl8192CURadioB_GM_ArrayLength 
+	#define MAC_2T_ArrayLength					Rtl8192CUMAC_2T_ArrayLength 
+	#define MACPHY_Array_PGLength 				Rtl8192CUMACPHY_Array_PGLength 
+	#define AGCTAB_2TArrayLength 				Rtl8192CUAGCTAB_2TArrayLength 
+	#define AGCTAB_1TArrayLength 				Rtl8192CUAGCTAB_1TArrayLength 
+	#define AGCTAB_1T_HPArrayLength 			Rtl8192CUAGCTAB_1T_HPArrayLength 
 	#define PHY_REG_1T_HPArrayLength			Rtl8192CUPHY_REG_1T_HPArrayLength
 
 #endif
@@ -379,7 +380,7 @@ typedef enum _USB_RX_AGG_MODE{
 #define IC_TYPE_MASK					(BIT(0)|BIT(1)|BIT(2))
 #define CHIP_TYPE_MASK 				BIT(3)
 #define RF_TYPE_MASK					(BIT(4)|BIT(5)|BIT(6))
-#define MANUFACTUER_MASK			BIT(7)
+#define MANUFACTUER_MASK			BIT(7)	
 #define ROM_VERSION_MASK				(BIT(11)|BIT(10)|BIT(9)|BIT(8))
 #define CUT_VERSION_MASK				(BIT(15)|BIT(14)|BIT(13)|BIT(12))
 
@@ -405,7 +406,7 @@ typedef enum _USB_RX_AGG_MODE{
 #define IS_92C_SERIAL(version)   				((IS_81XXC(version) && IS_2T2R(version)) ? _TRUE : _FALSE)
 
 #define IS_VENDOR_8723_A_CUT(version)		((IS_8723_SERIES(version)) ? ((GET_CVID_CUT_VERSION(version)) ? _FALSE : _TRUE) : _FALSE)
-// <tynli_Note> 88/92C UMC B-cut vendor is set to TSMC so we need to check CHIP_VENDOR_UMC bit is not 1.
+// <tynli_Note> 88/92C UMC B-cut vendor is set to TSMC so we need to check CHIP_VENDOR_UMC bit is not 1. 
 
 #define IS_81xxC_VENDOR_UMC_A_CUT(version)	(IS_81XXC(version)?((IS_CHIP_VENDOR_UMC(version)) ? ((GET_CVID_CUT_VERSION(version)) ? _FALSE : _TRUE) : _FALSE):_FALSE)
 #define IS_81xxC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version)) ? ((GET_CVID_CUT_VERSION(version) == B_CUT_VERSION) ? _TRUE : _FALSE):_FALSE)
@@ -417,17 +418,17 @@ typedef enum _VERSION_8192C{
 	VERSION_TEST_CHIP_88C = 0x0000,
 	VERSION_TEST_CHIP_92C = 0x0020,
 	VERSION_TEST_UMC_CHIP_8723 = 0x0081,
-	VERSION_NORMAL_TSMC_CHIP_88C = 0x0008,
+	VERSION_NORMAL_TSMC_CHIP_88C = 0x0008, 
 	VERSION_NORMAL_TSMC_CHIP_92C = 0x0028,
 	VERSION_NORMAL_TSMC_CHIP_92C_1T2R = 0x0018,
 	VERSION_NORMAL_UMC_CHIP_88C_A_CUT = 0x0088,
 	VERSION_NORMAL_UMC_CHIP_92C_A_CUT = 0x00a8,
-	VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT = 0x0098,
+	VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT = 0x0098,		
 	VERSION_NORMAL_UMC_CHIP_8723_1T1R_A_CUT = 0x0089,
-	VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT = 0x1089,
-	VERSION_NORMAL_UMC_CHIP_88C_B_CUT = 0x1088,
-	VERSION_NORMAL_UMC_CHIP_92C_B_CUT = 0x10a8,
-	VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT = 0x1090,
+	VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT = 0x1089,	
+	VERSION_NORMAL_UMC_CHIP_88C_B_CUT = 0x1088, 
+	VERSION_NORMAL_UMC_CHIP_92C_B_CUT = 0x10a8, 
+	VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT = 0x1090, 
 	VERSION_TEST_CHIP_92D_SINGLEPHY= 0x0022,
 	VERSION_TEST_CHIP_92D_DUALPHY = 0x0002,
 	VERSION_NORMAL_CHIP_92D_SINGLEPHY= 0x002a,
@@ -478,7 +479,7 @@ typedef struct _TxPowerInfo{
 // <Roger_Notes> To prevent out of boundary programming case, leave 1byte and program full section
 // 9bytes + 1byt + 5bytes and pre 1byte.
 // For worst case:
-// | 1byte|----8bytes----|1byte|--5bytes--|
+// | 1byte|----8bytes----|1byte|--5bytes--| 
 // |         |            Reserved(14bytes)	      |
 //
 #define		EFUSE_OOB_PROTECT_BYTES 		15	// PG data exclude header, dummy 6 bytes frome CP test and reserved 1byte.
@@ -511,13 +512,13 @@ typedef enum _RT_MULTI_FUNC{
 //
 typedef enum _RT_POLARITY_CTL{
 	RT_POLARITY_LOW_ACT = 0,
-	RT_POLARITY_HIGH_ACT = 1,
+	RT_POLARITY_HIGH_ACT = 1,	
 }RT_POLARITY_CTL,*PRT_POLARITY_CTL;
 
 // For RTL8723 regulator mode. by tynli. 2011.01.14.
 typedef enum _RT_REGULATOR_MODE{
 	RT_SWITCHING_REGULATOR = 0,
-	RT_LDO_REGULATOR = 1,
+	RT_LDO_REGULATOR = 1,	
 }RT_REGULATOR_MODE,*PRT_REGULATOR_MODE;
 
 #ifdef CONFIG_PCI_HCI
@@ -541,7 +542,7 @@ struct hal_data_8192ce
 	u32	IntrMaskToSet[2];
 
 	u32	DisabledFunctions;
-
+	
 	//current WIFI_PHY values
 	u32	ReceiveConfig;
 	u32	TransmitConfig;
@@ -570,8 +571,8 @@ struct hal_data_8192ce
 	u16	EEPROMChannelPlan;
 	u16	EEPROMVersion;
 
-	u8	EEPROMChnlAreaTxPwrCCK[2][3];
-	u8	EEPROMChnlAreaTxPwrHT40_1S[2][3];
+	u8	EEPROMChnlAreaTxPwrCCK[2][3];	
+	u8	EEPROMChnlAreaTxPwrHT40_1S[2][3];	
 	u8	EEPROMChnlAreaTxPwrHT40_2SDiff[2][3];
 	u8	EEPROMPwrLimitHT20[3];
 	u8	EEPROMPwrLimitHT40[3];
@@ -589,7 +590,7 @@ struct hal_data_8192ce
 
 	u8	TxPwrLevelCck[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 	u8	TxPwrLevelHT40_1S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
+	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr	
 	u8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
 	u8	TxPwrLegacyHtDiff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
 	// For power group
@@ -598,6 +599,11 @@ struct hal_data_8192ce
 
 	u8	LegacyHTTxPowerDiff;// Legacy to HT rate power diff
 
+	BOOLEAN 			EepromOrEfuse;
+	u8				EfuseMap[2][HWSET_MAX_SIZE_512]; //92C:256bytes, 88E:512bytes, we use union set (512bytes)
+	u8				EfuseUsedPercentage;
+	EFUSE_HAL			EfuseHal;
+	
 #ifdef CONFIG_BT_COEXIST
 	struct btcoexist_priv	bt_coexist;
 #endif
@@ -621,7 +627,7 @@ struct hal_data_8192ce
 	u8	bLedOpenDrain; // Support Open-drain arrangement for controlling the LED. Added by Roger, 2009.10.16.
 	//u32	TxPowerTrackControl;
 	u8	b1x1RecvCombine;	// for 1T1R receive combining
-
+	
 	u32	AcParam_BE; //Original parameter for BE, use for EDCA turbo.
 
 	//vivi, for tx power tracking, 20080407
@@ -632,9 +638,9 @@ struct hal_data_8192ce
 	u8	CurrentOfdm24GTxPwrIdx;
 
 	BB_REGISTER_DEFINITION_T	PHYRegDef[4];	//Radio A/B/C/D
-
+	
 	u32	RfRegChnlVal[2];
-
+	
 	//RDG enable
 	BOOLEAN	 bRDGEnable;
 
@@ -647,8 +653,8 @@ struct hal_data_8192ce
 	u32	RegBcnCtrlVal;
 	u8	RegFwHwTxQCtrl;
 	u8	RegReg542;
-	u8	CurAntenna;
-
+	u8	CurAntenna;	
+	
 //### ODM-DUPLICATE CODE ###
 	u8	AntDivCfg;
 /*
@@ -668,7 +674,7 @@ struct hal_data_8192ce
 	u32				OFDM_Ant2_Cnt;
 #endif
 */
-//### ODM-DUPLICATE CODE ###
+//### ODM-DUPLICATE CODE ###	
 	struct dm_priv	dmpriv;
 	DM_ODM_T 		odmpriv;
 	//_lock			odm_stainfo_lock;
@@ -683,7 +689,7 @@ struct hal_data_8192ce
 	u8	FwRsvdPageStartOffset; //2010.06.23. Added by tynli. Reserve page start offset except beacon in TxQ.
 
 	u16	EfuseUsedBytes;
-
+	
 #ifdef CONFIG_P2P
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 #endif //CONFIG_P2P
@@ -762,7 +768,7 @@ struct hal_data_8192cu
 
 	u8	TxPwrLevelCck[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 	u8	TxPwrLevelHT40_1S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
+	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr	
 	u8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
 	u8	TxPwrLegacyHtDiff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
 	// For power group
@@ -817,19 +823,19 @@ struct hal_data_8192cu
 	u32	RegBcnCtrlVal;
 	u8	RegFwHwTxQCtrl;
 	u8	RegReg542;
-
+	
 	struct dm_priv	dmpriv;
 	DM_ODM_T 		odmpriv;
 	//_lock			odm_stainfo_lock;
 #ifdef DBG_CONFIG_ERROR_DETECT
 	struct sreset_priv srestpriv;
-#endif
+#endif	
 
 #ifdef CONFIG_BT_COEXIST
 	struct btcoexist_priv	bt_coexist;
 #endif
-	u8	CurAntenna;
-
+	u8	CurAntenna;	
+	
 /*****ODM duplicate data********/
 	u8	AntDivCfg;
 /*
@@ -897,6 +903,12 @@ struct hal_data_8192cu
 
 	u16	EfuseUsedBytes;
 
+	BOOLEAN 			EepromOrEfuse;
+	u8				EfuseMap[2][HWSET_MAX_SIZE_512]; //92C:256bytes, 88E:512bytes, we use union set (512bytes)
+	u8				EfuseUsedPercentage;
+	EFUSE_HAL			EfuseHal;
+	
+
 #ifdef CONFIG_P2P
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 #endif //CONFIG_P2P
@@ -915,7 +927,7 @@ VOID rtl8192c_FirmwareSelfReset(IN PADAPTER Adapter);
 int FirmwareDownload92C(IN PADAPTER Adapter);
 VOID InitializeFirmwareVars92C(PADAPTER Adapter);
 u8 GetEEPROMSize8192C(PADAPTER Adapter);
-RT_CHANNEL_DOMAIN _HalMapChannelPlan8192C(PADAPTER Adapter, u8 HalChannelPlan);
+void rtl8192c_EfuseParseChnlPlan(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 
 #ifdef CONFIG_CHIP_VER_INTEGRATION
 HAL_VERSION
@@ -930,3 +942,4 @@ VOID rtl8192c_EfuseParseIDCode(PADAPTER pAdapter, u8 *hwinfo);
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc);
 
 #endif
+

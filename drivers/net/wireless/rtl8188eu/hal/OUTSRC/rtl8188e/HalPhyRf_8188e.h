@@ -38,36 +38,60 @@ ODM_TxPwrTrackAdjust88E(
 
 VOID
 odm_TXPowerTrackingCallback_ThermalMeter_8188E(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm
+#else
 	IN PADAPTER	Adapter
+#endif
 	);
 
 
 //1 7.	IQK
 
-void
-PHY_IQCalibrate_8188E(	IN	PADAPTER	pAdapter,
+void	
+PHY_IQCalibrate_8188E(	
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm,
+#else
+	IN PADAPTER	Adapter,
+#endif
 							IN	BOOLEAN 	bReCovery);
 
 
 //
 // LC calibrate
 //
-void
-PHY_LCCalibrate_8188E(		IN	PADAPTER	pAdapter);
+void	
+PHY_LCCalibrate_8188E(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm
+#else
+	IN	PADAPTER	pAdapter
+#endif
+);
 
 //
 // AP calibrate
 //
-void
-PHY_APCalibrate_8188E(		IN	PADAPTER	pAdapter,
+void	
+PHY_APCalibrate_8188E(		
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm,
+#else
+	IN	PADAPTER	pAdapter,
+#endif
 							IN 	s1Byte		delta);
-void
+void	
 PHY_DigitalPredistortion_8188E(		IN	PADAPTER	pAdapter);
 
 
 VOID
 _PHY_SaveADDARegisters(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm,
+#else
 	IN	PADAPTER	pAdapter,
+#endif
 	IN	pu4Byte		ADDAReg,
 	IN	pu4Byte		ADDABackup,
 	IN	u4Byte		RegisterNum
@@ -75,7 +99,11 @@ _PHY_SaveADDARegisters(
 
 VOID
 _PHY_PathADDAOn(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm,
+#else
 	IN	PADAPTER	pAdapter,
+#endif
 	IN	pu4Byte		ADDAReg,
 	IN	BOOLEAN		isPathAOn,
 	IN	BOOLEAN		is2T
@@ -83,16 +111,25 @@ _PHY_PathADDAOn(
 
 VOID
 _PHY_MACSettingCalibration(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm,
+#else
 	IN	PADAPTER	pAdapter,
+#endif
 	IN	pu4Byte		MACReg,
-	IN	pu4Byte		MACBackup
+	IN	pu4Byte		MACBackup	
 	);
 
 
 VOID
 _PHY_PathAStandBy(
+#if (DM_ODM_SUPPORT_TYPE & ODM_AP)
+	IN PDM_ODM_T		pDM_Odm
+#else
 	IN	PADAPTER	pAdapter
+#endif
 	);
 
-
+								
 #endif	// #ifndef __HAL_PHY_RF_8188E_H__
+

@@ -24,7 +24,7 @@
 //
 //
 //============================================================
-#define _RTL8723A_DM_C_
+#define _RTL8188E_DM_C_
 
 //============================================================
 // include files
@@ -279,61 +279,64 @@ static void Init_ODM_ComInfo_88E(PADAPTER	Adapter)
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 	u8	cut_ver,fab_ver;
-
+	
 	//
 	// Init Value
 	//
 	_rtw_memset(pDM_Odm,0,sizeof(pDM_Odm));
-
+	
 	pDM_Odm->Adapter = Adapter;
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_PLATFORM,ODM_CE);
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_INTERFACE,Adapter->interface_type);//RTL871X_HCI_TYPE
-
+	
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_IC_TYPE,ODM_RTL8188E);
 
 	fab_ver = ODM_TSMC;
-	cut_ver = ODM_CUT_A;
+	cut_ver = ODM_CUT_A;	
 
-	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_FAB_VER,fab_ver);
+	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_FAB_VER,fab_ver);		
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_CUT_VER,cut_ver);
 
 	ODM_CmnInfoInit(pDM_Odm,	ODM_CMNINFO_MP_TEST_CHIP,IS_NORMAL_CHIP(pHalData->VersionID));
-
-#if 0
-//#ifdef CONFIG_USB_HCI
+	
+#if 0	
+//#ifdef CONFIG_USB_HCI	
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_BOARD_TYPE,pHalData->BoardType);
 
 	if(pHalData->BoardType == BOARD_USB_High_PA){
 		ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_EXT_LNA,_TRUE);
 		ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_EXT_PA,_TRUE);
 	}
-#endif
+#endif	
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_PATCH_ID,pHalData->CustomerID);
 	//	ODM_CMNINFO_BINHCT_TEST only for MP Team
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_BWIFI_TEST,Adapter->registrypriv.wifi_spec);
-
-
+		
+	
 	if(pHalData->rf_type == RF_1T1R){
-		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_1T1R);
+		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_1T1R);		
 	}
 	else if(pHalData->rf_type == RF_2T2R){
-		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_2T2R);
+		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_2T2R);		
 	}
-	else if(pHalData->rf_type == RF_1T2R){
-		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_1T2R);
-	}
+	else if(pHalData->rf_type == RF_1T2R){		
+		ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_RF_TYPE,ODM_1T2R);		
+	}	
+
+ 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RF_ANTENNA_TYPE, pHalData->TRxAntDivType);
+	
 	#ifdef CONFIG_DISABLE_ODM
 	pdmpriv->InitODMFlag = 0;
 	#else
 	pdmpriv->InitODMFlag =	ODM_RF_CALIBRATION		|
 							ODM_RF_TX_PWR_TRACK	//|
-							;
+							;	
 	//if(pHalData->AntDivCfg)
 	//	pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
-	#endif
+	#endif	
 
 	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,pdmpriv->InitODMFlag);
-
+	
 }
 static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 {
@@ -342,34 +345,37 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	int i;
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;	
+	int i;	
 	#ifdef CONFIG_DISABLE_ODM
 	pdmpriv->InitODMFlag = 0;
 	#else
 	pdmpriv->InitODMFlag =	ODM_BB_DIG				|
+#ifdef	CONFIG_ODM_REFRESH_RAMASK
 							ODM_BB_RA_MASK			|
+#endif							
 							ODM_BB_DYNAMIC_TXPWR	|
 							ODM_BB_FA_CNT			|
 							ODM_BB_RSSI_MONITOR	|
-							ODM_BB_CCK_PD			|
-							ODM_BB_PWR_SAVE		|
+							ODM_BB_CCK_PD			|							
+							ODM_BB_PWR_SAVE		|							
 							ODM_MAC_EDCA_TURBO	|
 							ODM_RF_CALIBRATION		|
-							ODM_RF_TX_PWR_TRACK	//|
-							;
-	//if(pHalData->AntDivCfg)
-	//	pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
-	#endif
+							ODM_RF_TX_PWR_TRACK	
+							;	
+	if(pHalData->AntDivCfg)
+		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
+	
+	#endif	
 	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,pdmpriv->InitODMFlag);
-
+	
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_TX_UNI,&(Adapter->xmitpriv.tx_bytes));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_RX_UNI,&(Adapter->recvpriv.rx_bytes));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_WM_MODE,&(pmlmeext->cur_wireless_mode));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_SEC_CHNL_OFFSET,&(pHalData->nCur40MhzPrimeSC));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_SEC_MODE,&(Adapter->securitypriv.dot11PrivacyAlgrthm));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BW,&(pHalData->CurrentChannelBW ));
-	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_CHNL,&( pHalData->CurrentChannel));
+	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_CHNL,&( pHalData->CurrentChannel));	
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_NET_CLOSED,&( Adapter->net_closed));
 
 	//================= only for 8192D   =================
@@ -384,7 +390,7 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BT_OPERATION,&(pDM_Odm->u1Byte_temp));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_BT_DISABLE_EDCA,&(pDM_Odm->u1Byte_temp));
 	*/
-
+	
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_SCAN,&(pmlmepriv->bScanInProcess));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_POWER_SAVING,&(pwrctrlpriv->bpower_saving));
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_RF_ANTENNA_TYPE,NO_ANTDIV);
@@ -393,7 +399,7 @@ static void Update_ODM_ComInfo_88E(PADAPTER	Adapter)
 	{
 		//pDM_Odm->pODM_StaInfo[i] = NULL;
 		ODM_CmnInfoPtrArrayHook(pDM_Odm, ODM_CMNINFO_STA_STATUS,i,NULL);
-	}
+	}	
 }
 
 void
@@ -424,48 +430,48 @@ static void
 FindMinimumRSSI_88e(
 IN	PADAPTER	pAdapter
 	)
-{
+{	
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
 
-	//1 1.Determine the minimum RSSI
+	//1 1.Determine the minimum RSSI 
 
 
 #ifdef CONFIG_CONCURRENT_MODE
-	//	FindMinimumRSSI()	per-adapter
-	{
+	//	FindMinimumRSSI()	per-adapter	
+	{		
 		PADAPTER pbuddy_adapter = pAdapter->pbuddy_adapter;
 		PHAL_DATA_TYPE	pbuddy_HalData = GET_HAL_DATA(pbuddy_adapter);
 		struct dm_priv *pbuddy_dmpriv = &pbuddy_HalData->dmpriv;
-
+	
 		if((pdmpriv->EntryMinUndecoratedSmoothedPWDB != 0) &&
                   (pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB != 0))
-		{
+      		{
 
 			if(pdmpriv->EntryMinUndecoratedSmoothedPWDB > pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB)
 				pdmpriv->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
              }
-		else
+		else                         
 		{
 			if(pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0)
 			      pdmpriv->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
-
+			       
 		}
-		#if 0
+ 		#if 0
 		if((pdmpriv->UndecoratedSmoothedPWDB != (-1)) &&
 			 (pbuddy_dmpriv->UndecoratedSmoothedPWDB != (-1)))
 		{
-
+			
 			if((pdmpriv->UndecoratedSmoothedPWDB > pbuddy_dmpriv->UndecoratedSmoothedPWDB) &&
 				(pbuddy_dmpriv->UndecoratedSmoothedPWDB!=0))
 			            pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
 		}
-		else
+		else                         
 		{
 			if((pdmpriv->UndecoratedSmoothedPWDB == (-1)) && (pbuddy_dmpriv->UndecoratedSmoothedPWDB!=0))
-			      pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
-		}
+			      pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;                               
+		}                      
 		#endif
 	}
 #endif
@@ -496,7 +502,7 @@ IN	PADAPTER	pAdapter
 		#endif
 	}
 	else // associated entry pwdb
-	{
+	{	
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 		//ODM_RT_TRACE(pDM_Odm,COMP_BB_POWERSAVING, DBG_LOUD, ("AP Ext Port or disconnet PWDB = 0x%x \n", pHalData->MinUndecoratedPWDBForDM));
 	}
@@ -533,16 +539,6 @@ rtl8188e_HalDmWatchDog(
 		bFwPSAwake = _FALSE;
 #endif //CONFIG_P2P
 
-	// Stop dynamic mechanism when:
-	// 1. RF is OFF. (No need to do DM.)
-	// 2. Fw is under power saving mode for FwLPS. (Prevent from SW/FW I/O racing.)
-	// 3. IPS workitem is scheduled. (Prevent from IPS sequence to be swapped with DM.
-	//     Sometimes DM execution time is longer than 100ms such that the assertion
-	//     in MgntActSet_RF_State() called by InactivePsWorkItem will be triggered by
-	//     wating to long for RFChangeInProgress.)
-	// 4. RFChangeInProgress is TRUE. (Prevent from broken by IPS/HW/SW Rf off.)
-	// Noted by tynli. 2010.06.01.
-	//if(rfState == eRfOn)
 	if( (Adapter->hw_init_completed == _TRUE)
 		&& ((!bFwCurrentInPSMode) && bFwPSAwake))
 	{
@@ -572,13 +568,13 @@ rtl8188e_HalDmWatchDog(
 		// Calculate Tx/Rx statistics.
 		//
 		dm_CheckStatistics(Adapter);
-
-
+	
+	
 #ifdef CONFIG_CONCURRENT_MODE
 		if(Adapter->adapter_type > PRIMARY_ADAPTER)
 			goto _record_initrate;
 #endif
-
+	
 		//
 		// Dynamically switch RTS/CTS protection.
 		//
@@ -592,38 +588,37 @@ rtl8188e_HalDmWatchDog(
 		//if(Adapter->HalFunc.TxCheckStuckHandler(Adapter))
 		//	PlatformScheduleWorkItem(&(GET_HAL_DATA(Adapter)->HalResetWorkItem));
 #endif
+		_record_initrate:
+		_func_exit_;	
+	}
 
-		{//ODM
-			struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
-			u8	bLinked=_FALSE;
-			#ifdef CONFIG_DISABLE_ODM
-			pHalData->odmpriv.SupportAbility = 0;
-			#endif
-
-			if(	(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
-				(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == _TRUE))
-			{
-				if(Adapter->stapriv.asoc_sta_count > 2)
-					bLinked = _TRUE;
-			}
-			else{//Station mode
-				if(check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE)
-					bLinked = _TRUE;
-			}
-
-			ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
-
-			FindMinimumRSSI_88e(Adapter);
-			ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
-
-
-			ODM_DMWatchdog(&pHalData->odmpriv);
-
+	//ODM
+	if (Adapter->hw_init_completed == _TRUE)
+	{
+		struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
+		u8	bLinked=_FALSE;
+		#ifdef CONFIG_DISABLE_ODM
+		pHalData->odmpriv.SupportAbility = 0;
+		#endif
+			
+		if(	(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE) ||
+			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == _TRUE))
+		{				
+			if(Adapter->stapriv.asoc_sta_count > 2)
+				bLinked = _TRUE;
+		}
+		else{//Station mode
+			if(check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE)
+				bLinked = _TRUE;
 		}
 
-_record_initrate:
-	_func_exit_;
+		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
 
+		FindMinimumRSSI_88e(Adapter);
+		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+				
+		ODM_DMWatchdog(&pHalData->odmpriv);
+			
 	}
 
 	// Check GPIO to determine current RF on/off and Pbc status.
@@ -633,7 +628,7 @@ _record_initrate:
 #endif
 	{
 		//temp removed
-		//dm_CheckPbcGPIO(Adapter);				// Add by hpfan 2008-03-11
+		//dm_CheckPbcGPIO(Adapter);				
 	}
 	return;
 }
@@ -647,10 +642,10 @@ void rtl8188e_init_dm_priv(IN PADAPTER Adapter)
 	//_rtw_spinlock_init(&(pHalData->odm_stainfo_lock));
 	Init_ODM_ComInfo_88E(Adapter);
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
-	//_init_timer(&(pdmpriv->SwAntennaSwitchTimer),  Adapter->pnetdev , odm_SW_AntennaSwitchCallback, Adapter);
-	ODM_InitAllTimers(podmpriv );
+	//_init_timer(&(pdmpriv->SwAntennaSwitchTimer),  Adapter->pnetdev , odm_SW_AntennaSwitchCallback, Adapter);	
+	ODM_InitAllTimers(podmpriv );	
 #endif
-	ODM_InitDebugSetting(podmpriv);
+	ODM_InitDebugSetting(podmpriv);	
 }
 
 void rtl8188e_deinit_dm_priv(IN PADAPTER Adapter)
@@ -660,8 +655,8 @@ void rtl8188e_deinit_dm_priv(IN PADAPTER Adapter)
 	PDM_ODM_T 		podmpriv = &pHalData->odmpriv;
 	//_rtw_spinlock_free(&pHalData->odm_stainfo_lock);
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
-	//_cancel_timer_ex(&pdmpriv->SwAntennaSwitchTimer);
-	ODM_CancelAllTimers(podmpriv);
+	//_cancel_timer_ex(&pdmpriv->SwAntennaSwitchTimer);	
+	ODM_CancelAllTimers(podmpriv);	
 #endif
 }
 
@@ -673,7 +668,7 @@ void rtl8188e_deinit_dm_priv(IN PADAPTER Adapter)
 void	SwAntDivCompare8188E(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *src)
 {
 	//PADAPTER Adapter = pDM_Odm->Adapter ;
-
+	
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	if(0 != pHalData->AntDivCfg )
 	{
@@ -683,7 +678,7 @@ void	SwAntDivCompare8188E(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *s
 		if(dst->Rssi >=  src->Rssi )//keep org parameter
 		{
 			src->Rssi = dst->Rssi;
-			src->PhyInfo.Optimum_antenna = dst->PhyInfo.Optimum_antenna;
+			src->PhyInfo.Optimum_antenna = dst->PhyInfo.Optimum_antenna;						
 		}
 	}
 }
@@ -691,12 +686,12 @@ void	SwAntDivCompare8188E(PADAPTER Adapter, WLAN_BSSID_EX *dst, WLAN_BSSID_EX *s
 // Add new function to reset the state of antenna diversity before link.
 u8 SwAntDivBeforeLink8188E(PADAPTER Adapter )
 {
-
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);	
 	PDM_ODM_T 	pDM_Odm =&pHalData->odmpriv;
 	SWAT_T		*pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 	struct mlme_priv	*pmlmepriv = &(Adapter->mlmepriv);
-
+	
 	// Condition that does not need to use antenna diversity.
 	if(pHalData->AntDivCfg==0)
 	{
@@ -704,8 +699,8 @@ u8 SwAntDivBeforeLink8188E(PADAPTER Adapter )
 		return _FALSE;
 	}
 
-	if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
-	{
+	if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)	
+	{		
 		return _FALSE;
 	}
 
@@ -724,7 +719,8 @@ u8 SwAntDivBeforeLink8188E(PADAPTER Adapter )
 	{
 		pDM_SWAT_Table->SWAS_NoLink_State = 0;
 		return _FALSE;
-	}
+	}	
 
 }
 #endif
+

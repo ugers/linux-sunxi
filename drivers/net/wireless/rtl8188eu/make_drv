@@ -114,6 +114,15 @@ ch_obj_eu()
 
 	cp -f Kconfig_rtl8188e_usb_linux Kconfig
 }
+
+ch_obj_ee()
+{
+	sed -i '/obj-$(CONFIG_RTL/c\obj-$(CONFIG_RTL8188EE) := $(MODULE_NAME).o' Makefile
+	sed -i '/export CONFIG_RTL/c\export CONFIG_RTL8188EE = m' Makefile
+
+	cp -f Kconfig_rtl8188e_pci_linux Kconfig
+}
+
 get_svn_revision()
 {
 	if [ -z "$svn_rev" ] && [ -f .svn/entries ]; then
@@ -152,7 +161,7 @@ if [ ! -f include/rtw_version.h ]; then
 	# Make Version string
 	if [ -z "$2" ]; then
 		get_svn_revision
-		version="v4.0.0_"$svn_rev
+		version="v4.1.1_"$svn_rev
 		datestr=$(date +%Y%m%d)
 		postfix=$version.$datestr
 	else
@@ -166,7 +175,7 @@ if [ $# -eq 1 ]; then
 else
 	# Select NIC type
 	echo "Please select card type(1/2):"
-	select card in RTL8188eu RTL8189es;
+	select card in RTL8188eus RTL8189es;
 	do
 		echo "You have selected $card"
 		break
@@ -210,11 +219,16 @@ case "$card" in
 	nic_8188e;
 	intf_sdio;
 	ch_obj_es;;
-	[Rr][Tt][Ll]8188[Ee][Uu])
+	[Rr][Tt][Ll]8188[Ee][Uu][Ss])
 	conf_driver;
 	nic_8188e;
 	intf_usb;
-	ch_obj_eu;;
+	ch_obj_eu;;	
+	[Rr][Tt][Ll]8188[Ee][Ee])
+	conf_driver;
+	nic_8188e;
+	intf_pcie;
+	ch_obj_ee;;
 	*)
 	echo "Unknown NIC type"
 	;;

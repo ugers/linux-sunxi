@@ -174,15 +174,26 @@
 
 //2 HSIMR
 // 8723 Host System Interrupt Mask Register (offset 0x58, 32 byte)
-#define HSIMR_GPIO12_0_INT_EN	BIT0
-#define HSIMR_SPS_OCP_INT_EN	BIT5
-#define HSIMR_PDNINT_EN			BIT7
+#define HSIMR_GPIO12_0_INT_EN	BIT(0)
+#define HSIMR_SPS_OCP_INT_EN	BIT(5)
+#define HSIMR_RON_INT_EN		BIT(6)
+#define HSIMR_PDNINT_EN		BIT(7)
+#define HSIMR_GPIO9_INT_EN		BIT(25)
 
 //2 HSISR
 // 8723 Host System Interrupt Status Register (offset 0x5C, 32 byte)
-#define HSISR_GPIO12_0_INT		BIT0
-#define HSISR_SPS_OCP_INT		BIT5
-#define HSISR_PDNINT			BIT7
+#define HSISR_GPIO12_0_INT		BIT(0)
+#define HSISR_SPS_OCP_INT		BIT(5)
+#define HSISR_RON_INT			BIT(6)
+#define HSISR_PDNINT			BIT(7)
+#define	HSISR_GPIO9_INT			BIT(25)
+
+// interrupt mask which needs to clear
+#define MASK_HSISR_CLEAR		(HSISR_GPIO12_0_INT |\
+								HSISR_SPS_OCP_INT |\
+								HSISR_RON_INT |\
+								HSISR_PDNINT |\
+								HSISR_GPIO9_INT)
 
 //2 MCUFWDL
 #define RAM_DL_SEL				BIT7	// 1:RAM, 0:ROM
@@ -517,3 +528,4 @@
 
 
 #endif
+

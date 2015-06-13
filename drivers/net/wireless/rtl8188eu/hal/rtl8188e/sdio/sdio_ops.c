@@ -214,7 +214,7 @@ _func_enter_;
 	psdio = &psdiodev->intf_data;
 
 	ftaddr = _cvrt2ftaddr(addr, NULL, NULL);
-	sd_cmd52_read(psdio, ftaddr, 2, (u8*)&val);
+	sd_cmd52_read(psdio, ftaddr, 2, (u8*)&val);	
 	val = le16_to_cpu(val);
 
 _func_exit_;
@@ -271,7 +271,7 @@ _func_enter_;
 		val = sd_read32(psdio, ftaddr, NULL);
 	} else {
 		u8 *ptmpbuf;
-
+				
 		ptmpbuf = (u8*)rtw_malloc(8);
 		if (NULL == ptmpbuf) {
 			DBG_871X(KERN_ERR "%s: Allocate memory FAIL!(size=8) addr=0x%x\n", __func__, addr);
@@ -436,7 +436,7 @@ _func_enter_;
 		err = sd_cmd52_write(psdio, ftaddr, 4, (u8*)&val);
 	}
 #else
-	if (shift == 0) {
+	if (shift == 0) {	
 		sd_write32(psdio, ftaddr, val, &err);
 	} else {
 		u8 *ptmpbuf;
@@ -453,10 +453,10 @@ _func_enter_;
 		val = cpu_to_le32(val);
 		_rtw_memcpy(ptmpbuf+shift, &val, 4);
 		err = sd_write(psdio, ftaddr, 8, ptmpbuf);
-
+		
 		rtw_mfree(ptmpbuf, 8);
 	}
-#endif
+#endif	
 
 _func_exit_;
 
@@ -575,12 +575,12 @@ static u32 sdio_read_port(
 	cnt = _RND4(cnt);
 	if (cnt > psdio->block_transfer_len)
 		cnt = _RND(cnt, psdio->block_transfer_len);
-
+	
 //	cnt = sdio_align_size(cnt);
 
 	err = _sd_read(psdio, addr, cnt, mem);
 	//err = sd_read(psdio, addr, cnt, mem);
-
+	
 
 
 	if (err) return _FAIL;
@@ -691,7 +691,7 @@ s32 _sdio_local_read(
 		_rtw_memcpy(pbuf, ptmpbuf, cnt);
 
 	if(ptmpbuf)
-		rtw_mfree(ptmpbuf, n);
+		rtw_mfree(ptmpbuf, n);	
 
 	return err;
 }
@@ -737,7 +737,7 @@ s32 sdio_local_read(
 		_rtw_memcpy(pbuf, ptmpbuf, cnt);
 
 	if(ptmpbuf)
-		rtw_mfree(ptmpbuf, n);
+		rtw_mfree(ptmpbuf, n);	
 
 	return err;
 }
@@ -787,7 +787,7 @@ s32 _sdio_local_write(
 	_rtw_memcpy(ptmpbuf, pbuf, cnt);
 
 	err = _sd_write(psdio, addr, cnt, ptmpbuf);
-
+	
 	if (ptmpbuf)
 		rtw_mfree(ptmpbuf, cnt);
 
@@ -1368,7 +1368,7 @@ static void sd_rxhandler(PADAPTER padapter, struct recv_buf *precvbuf)
 	{
 		//3 1. enqueue recvbuf
 		rtw_enqueue_recvbuf(precvbuf, ppending_queue);
-
+		
 		//3 2. schedule tasklet
 #ifdef PLATFORM_LINUX
 		tasklet_schedule(&precvpriv->recv_tasklet);
@@ -1391,7 +1391,8 @@ void sd_int_dpc(PADAPTER padapter)
 		//88e's cpwm value only change BIT0, so driver need to add PS_STATE_S2 for LPS flow.
 		//modify by Thomas. 2012/4/2.
 		report.state |= PS_STATE_S2;
-		cpwm_int_hdl(padapter, &report);
+		//cpwm_int_hdl(padapter, &report);
+		_set_workitem(&padapter->pwrctrlpriv.cpwm_event);
 #endif
 	}
 
@@ -1399,7 +1400,7 @@ void sd_int_dpc(PADAPTER padapter)
 	{
 		u8 *status;
 		u32 addr;
-
+	
 		status = _rtw_malloc(4);
 		if (status)
 		{
@@ -1411,7 +1412,7 @@ void sd_int_dpc(PADAPTER padapter)
 			_rtw_mfree(status, 4);
 		} else {
 			printk("%s: SDIO_HISR_TXERR, but can't allocate memory to read status!\n", __func__);
-		}
+		}		
 	}
 
 	if (pHalData->sdio_hisr & SDIO_HISR_TXBCNOK)
@@ -1460,7 +1461,7 @@ void sd_int_dpc(PADAPTER padapter)
 #endif
 
 	}
-
+	
 }
 
 void sd_int_hdl(PADAPTER padapter)
@@ -1489,15 +1490,15 @@ void sd_int_hdl(PADAPTER padapter)
 		}
 
 		sd_int_dpc(padapter);
-
-	}
-	else
+		
+	} 
+	else 
 	{
 		RT_TRACE(_module_hci_ops_c_, _drv_err_,
 				("%s: HISR(0x%08x) and HIMR(0x%08x) not match!\n",
 				__FUNCTION__, pHalData->sdio_hisr, pHalData->sdio_himr));
 	}
-
+	
 }
 
 //
@@ -1534,3 +1535,4 @@ u8 HalQueryTxBufferStatus8723ASdio(PADAPTER padapter)
 
 	return _TRUE;
 }
+

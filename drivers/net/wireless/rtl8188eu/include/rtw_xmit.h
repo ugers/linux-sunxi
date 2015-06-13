@@ -410,7 +410,7 @@ struct xmit_buf
 	u32  len;
 #endif
 
-#ifdef DBG_XMIT_BUF
+#if defined(DBG_XMIT_BUF )|| defined(DBG_XMIT_BUF_EXT)
 	u8 no;
 #endif
 
@@ -575,6 +575,7 @@ struct	xmit_priv	{
 	// Tx
 	struct rtw_tx_ring	tx_ring[PCI_MAX_TX_QUEUE_COUNT];
 	int	txringcount[PCI_MAX_TX_QUEUE_COUNT];
+	u8 	beaconDMAing;		//flag of indicating beacon is transmiting to HW by DMA
 #ifdef PLATFORM_LINUX
 	struct tasklet_struct xmit_tasklet;
 #endif
@@ -595,11 +596,11 @@ struct	xmit_priv	{
 	#ifdef CONFIG_TX_EARLY_MODE
 
 	#ifdef CONFIG_SDIO_HCI
-	#define MAX_AGG_PKT_NUM 20
+	#define MAX_AGG_PKT_NUM 20	
 	#else
-	#define MAX_AGG_PKT_NUM 256 //Max tx ampdu coounts
+	#define MAX_AGG_PKT_NUM 256 //Max tx ampdu coounts		
 	#endif
-
+	
 	struct agg_pkt_info agg_pkt[MAX_AGG_PKT_NUM];
 	#endif
 };
@@ -670,3 +671,4 @@ void xmit_delivery_enabled_frames(_adapter *padapter, struct sta_info *psta);
 #include <xmit_osdep.h>
 
 #endif	//_RTL871X_XMIT_H_
+

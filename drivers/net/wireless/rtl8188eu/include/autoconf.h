@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -20,12 +20,12 @@
 //***** temporarily flag *******
 
 //#define CONFIG_DISABLE_ODM
-
+#define CONFIG_ODM_REFRESH_RAMASK
 #define CONFIG_CHIP_VER_INTEGRATION
 #define CONFIG_PHY_SETTING_WITH_ODM
 //for FPGA VERIFICATION config
 #define RTL8188E_FPGA_TRUE_PHY_VERIFICATION 0
-#define FOR_BRAZIL_PRETEST 0
+
 //***** temporarily flag *******
 /*
  * Public  General Config
@@ -74,11 +74,11 @@
 	#define CONFIG_LPS	1
 	//#define CONFIG_BT_COEXIST	1
 	//befor link
-	#define CONFIG_ANTENNA_DIVERSITY
+	#define CONFIG_ANTENNA_DIVERSITY	 	
+
 	//after link
-	#ifdef CONFIG_ANTENNA_DIVERSITY
-	#define CONFIG_SW_ANTENNA_DIVERSITY
-	//#define CONFIG_HW_ANTENNA_DIVERSITY
+	#ifdef CONFIG_ANTENNA_DIVERSITY	 
+	#define CONFIG_HW_ANTENNA_DIVERSITY		
 	#endif
 
 	//#define CONFIG_IOL
@@ -91,7 +91,7 @@
 	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
 		#define CONFIG_HOSTAPD_MLME	1
-	#endif
+	#endif			
 	#define CONFIG_FIND_BEST_CHANNEL	1
 	//#define CONFIG_NO_WIRELESS_HANDLERS	1
 #endif
@@ -103,7 +103,7 @@
 
 	//Unmarked if there is low p2p scanned ratio; Kurt
 	//#define CONFIG_P2P_AGAINST_NOISE	1
-
+	
 	#define CONFIG_P2P_REMOVE_GROUP_INFO
 	//#define CONFIG_DBG_P2P
 #endif
@@ -164,13 +164,13 @@
 //#define CONFIG_REDUCE_USB_TX_INT	1	// Trade-off: Improve performance, but may cause TX URBs blocked by USB Host/Bus driver on few platforms.
 //#define CONFIG_EASY_REPLACEMENT	1
 
-/*
+/* 
  * CONFIG_USE_USB_BUFFER_ALLOC_XX uses Linux USB Buffer alloc API and is for Linux platform only now!
  */
 #define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
 //#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
 
-/*
+/* 
  * USB VENDOR REQ BUFFER ALLOCATION METHOD
  * if not set we'll use function local variable (stack memory)
  */
@@ -246,11 +246,11 @@
 
 #define 	RTL8192CE_SUPPORT 				0
 #define 	RTL8192CU_SUPPORT 			0
-#define 	RTL8192C_SUPPORT 				(RTL8192CE_SUPPORT|RTL8192CU_SUPPORT)
+#define 	RTL8192C_SUPPORT 				(RTL8192CE_SUPPORT|RTL8192CU_SUPPORT)	
 
 #define 	RTL8192DE_SUPPORT 				0
 #define 	RTL8192DU_SUPPORT 			0
-#define 	RTL8192D_SUPPORT 				(RTL8192DE_SUPPORT|RTL8192DU_SUPPORT)
+#define 	RTL8192D_SUPPORT 				(RTL8192DE_SUPPORT|RTL8192DU_SUPPORT)	
 
 #define 	RTL8723AU_SUPPORT				0
 #define 	RTL8723AS_SUPPORT				0
@@ -268,7 +268,7 @@
 #define RATE_ADAPTIVE_SUPPORT 			1
 #define POWER_TRAINING_ACTIVE			1
 
-//#define CONFIG_RECFG_AGC_TAB
+//#define CONFIG_RECFG_AGC_TAB	
 //#endif
 
 #ifdef CONFIG_USB_TX_AGGREGATION
@@ -296,6 +296,7 @@
 
 //#define DBG_TX
 //#define DBG_XMIT_BUF
+//#define DBG_XMIT_BUF_EXT
 //#define DBG_TX_DROP_FRAME
 
 //#define DBG_RX_DROP_FRAME
@@ -314,3 +315,4 @@
 
 #define DBG_CONFIG_ERROR_DETECT
 //#define DBG_CONFIG_ERROR_RESET
+

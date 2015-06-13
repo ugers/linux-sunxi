@@ -39,7 +39,6 @@ CONFIG_RTL8192CU_REDEFINE_1X1 = n
 CONFIG_INTEL_WIDI = n
 
 CONFIG_PLATFORM_I386_PC = n
-CONFIG_PLATFORM_BCM2708 = n
 CONFIG_PLATFORM_ANDROID_X86 = n
 CONFIG_PLATFORM_ARM_S3C2K4 = n
 CONFIG_PLATFORM_ARM_PXA2XX = n
@@ -76,7 +75,7 @@ OUTSRC_FILES := hal/OUTSRC/odm_debug.o	\
 								hal/OUTSRC/odm_HWConfig.o\
 								hal/OUTSRC/odm.o\
 		hal/OUTSRC/HalPhyRf.o
-
+										
 ifeq ($(CONFIG_RTL8192C), y)
 RTL871X = rtl8192c
 
@@ -129,6 +128,8 @@ ifeq ($(CONFIG_RTL8723A), y)
 
 RTL871X = rtl8723a
 
+HAL_COMM_FILES := hal/$(RTL871X)/$(RTL871X)_sreset.o
+
 ifeq ($(CONFIG_SDIO_HCI), y)
 MODULE_NAME = 8723as
 OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/Hal8723SHWImg_CE.o
@@ -148,13 +149,16 @@ endif
 OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/HalHWImg8723A_BB.o\
 								hal/OUTSRC/$(RTL871X)/HalHWImg8723A_MAC.o\
 								hal/OUTSRC/$(RTL871X)/HalHWImg8723A_RF.o\
-								hal/OUTSRC/$(RTL871X)/odm_RegConfig8723A.o\
-								hal/OUTSRC/rtl8192c/HalDMOutSrc8192C_CE.o
+								hal/OUTSRC/$(RTL871X)/odm_RegConfig8723A.o
+
+OUTSRC_FILES += hal/OUTSRC/rtl8192c/HalDMOutSrc8192C_CE.o
+clean_more ?=
+clean_more += clean_odm-8192c
 
 PWRSEQ_FILES := hal/HalPwrSeqCmd.o \
 				hal/$(RTL871X)/Hal8723PwrSeq.o
 
-CHIP_FILES += $(OUTSRC_FILES) $(PWRSEQ_FILES)
+CHIP_FILES += $(HAL_COMM_FILES) $(OUTSRC_FILES) $(PWRSEQ_FILES)
 
 ifeq ($(CONFIG_BT_COEXIST), y)
 CHIP_FILES += hal/$(RTL871X)/rtl8723a_bt-coexist.o
@@ -165,21 +169,19 @@ endif
 ifeq ($(CONFIG_RTL8188E), y)
 
 RTL871X = rtl8188e
-HAL_COMM_FILES := hal/$(RTL871X)/$(RTL871X)_xmit.o
+HAL_COMM_FILES := hal/$(RTL871X)/$(RTL871X)_xmit.o\
+									hal/$(RTL871X)/$(RTL871X)_sreset.o
 
 ifeq ($(CONFIG_SDIO_HCI), y)
 MODULE_NAME = 8189es
-OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/Hal8188ESHWImg_CE.o
 endif
 
 ifeq ($(CONFIG_USB_HCI), y)
 MODULE_NAME = 8188eu
-OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/Hal8188EUHWImg_CE.o
 endif
 
 ifeq ($(CONFIG_PCI_HCI), y)
 MODULE_NAME = 8188ee
-OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/Hal8188EEHWImg_CE.o
 endif
 
 #hal/OUTSRC/$(RTL871X)/HalHWImg8188E_FW.o
@@ -195,8 +197,7 @@ OUTSRC_FILES += hal/OUTSRC/$(RTL871X)/HalHWImg8188E_MAC.o\
 PWRSEQ_FILES := hal/HalPwrSeqCmd.o \
 				hal/$(RTL871X)/Hal8188EPwrSeq.o
 
-
-CHIP_FILES += $(HAL_COMM_FILES) $(OUTSRC_FILES) $(PWRSEQ_FILES)
+CHIP_FILES += $(HAL_COMM_FILES) $(OUTSRC_FILES) $(PWRSEQ_FILES) 
 
 endif
 
@@ -256,7 +257,7 @@ _HAL_INTFS_FILES += $(CHIP_FILES)
 
 ifeq ($(CONFIG_AUTOCFG_CP), y)
 
-ifeq ($(CONFIG_RTL8188E)$(CONFIG_SDIO_HCI),yy)
+ifeq ($(CONFIG_RTL8188E)$(CONFIG_SDIO_HCI),yy) 
 $(shell cp $(TopDIR)/autoconf_rtl8189e_$(HCI_NAME)_linux.h $(TopDIR)/include/autoconf.h)
 else
 $(shell cp $(TopDIR)/autoconf_$(RTL871X)_$(HCI_NAME)_linux.h $(TopDIR)/include/autoconf.h)
@@ -507,7 +508,7 @@ endif
 ifeq ($(CONFIG_PLATFORM_SZEBOOK), y)
 EXTRA_CFLAGS += -DCONFIG_BIG_ENDIAN
 ARCH:=arm
-CROSS_COMPILE:=/opt/crosstool2/bin/armeb-unknown-linux-gnueabi-
+CROSS_COMPILE:=/opt/crosstool2/bin/armeb-unknown-linux-gnueabi- 
 KVER:= 2.6.31.6
 KSRC:= ../code/linux-2.6.31.6-2020/
 endif
@@ -528,7 +529,7 @@ EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
 ARCH := arm
 CROSS_COMPILE := arm-none-linux-gnueabi-
 KVER  := 3.0.8
-KSRC ?= $(src)
+KSRC ?= $(src) 
 endif
 
 ifneq ($(KERNELRELEASE),)
@@ -591,9 +592,12 @@ config_r:
 	@echo "make config"
 	/bin/bash script/Configure script/config.in
 
-.PHONY: modules clean
+.PHONY: modules clean clean_odm-8192c
 
-clean:
+clean_odm-8192c:
+	cd hal/OUTSRC/rtl8192c ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
+
+clean: $(clean_more)
 	rm -fr *.mod.c *.mod *.o .*.cmd *.ko *~
 	rm -fr .tmp_versions
 	rm -fr Module.symvers ; rm -fr Module.markers ; rm -fr modules.order
@@ -601,9 +605,10 @@ clean:
 	cd core ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
 	cd hal/$(RTL871X)/$(HCI_NAME) ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
 	cd hal/$(RTL871X) ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
-	cd hal/OUTSRC/$(RTL871X) ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
-	cd hal/OUTSRC/ ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
+	cd hal/OUTSRC/$(RTL871X) ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko 
+	cd hal/OUTSRC/ ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko 
 	cd hal ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
 	cd os_dep/linux ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
 	cd os_dep ; rm -fr *.mod.c *.mod *.o .*.cmd *.ko
 endif
+

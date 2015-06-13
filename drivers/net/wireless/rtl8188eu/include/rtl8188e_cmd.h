@@ -35,7 +35,7 @@ enum cmd_msg_element_id
 	P2P_PS_OFFLOAD_EID = 8,
 	SELECTIVE_SUSPEND_ROF_CMD = 9,
 	P2P_PS_CTW_CMD_EID = 32,
-	MAX_CMDMSG_EID
+	MAX_CMDMSG_EID	 
 };
 #else
 typedef enum _RTL8188E_H2C_CMD_ID
@@ -43,8 +43,8 @@ typedef enum _RTL8188E_H2C_CMD_ID
 	//Class Common
 	H2C_COM_RSVD_PAGE			=0x00,
 	H2C_COM_MEDIA_STATUS_RPT	=0x01,
-	H2C_COM_SCAN					=0x02,
-	H2C_COM_KEEP_ALIVE			=0x03,
+	H2C_COM_SCAN					=0x02,	
+	H2C_COM_KEEP_ALIVE			=0x03,	
 	H2C_COM_DISCNT_DECISION		=0x04,
 	H2C_COM_WWLAN				=0x05,
 	H2C_COM_INIT_OFFLOAD			=0x06,
@@ -69,10 +69,10 @@ typedef enum _RTL8188E_H2C_CMD_ID
 	H2C_BT_COEX_GPIO_MODE		=0x61,
 	H2C_BT_DAC_SWING_VAL			=0x62,
 	H2C_BT_PSD_RST				=0x63,
-
+	
 
 }RTL8188E_H2C_CMD_ID;
-
+	
 #endif
 
 
@@ -146,3 +146,5 @@ void rtl8192c_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 void CheckFwRsvdPageContent(PADAPTER padapter);
 void rtl8188e_set_FwMediaStatus_cmd(PADAPTER padapter, u16 mstatus_rpt );
 #endif//__RTL8188E_CMD_H__
+
+

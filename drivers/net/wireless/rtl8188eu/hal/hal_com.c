@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -44,22 +44,57 @@ void dump_chip_info(HAL_VERSION	ChipVersion)
 		DBG_871X("Chip Version Info: CHIP_8188E_");
 	}
 
-	DBG_871X("%s_",IS_NORMAL_CHIP(ChipVersion)?"Normal_Chip":"Test_Chip");
+	DBG_871X("%s_",IS_NORMAL_CHIP(ChipVersion)?"Normal_Chip":"Test_Chip");	
 	DBG_871X("%s_",IS_CHIP_VENDOR_TSMC(ChipVersion)?"TSMC":"UMC");
-	if(IS_A_CUT(ChipVersion)) DBG_871X("A_CUT_");
-	else if(IS_B_CUT(ChipVersion)) DBG_871X("B_CUT_");
-	else if(IS_C_CUT(ChipVersion)) DBG_871X("C_CUT_");
-	else if(IS_D_CUT(ChipVersion)) DBG_871X("D_CUT_");
-	else if(IS_E_CUT(ChipVersion)) DBG_871X("E_CUT_");
+	if(IS_A_CUT(ChipVersion)) DBG_871X("A_CUT_");	
+	else if(IS_B_CUT(ChipVersion)) DBG_871X("B_CUT_");	
+	else if(IS_C_CUT(ChipVersion)) DBG_871X("C_CUT_");	
+	else if(IS_D_CUT(ChipVersion)) DBG_871X("D_CUT_");	
+	else if(IS_E_CUT(ChipVersion)) DBG_871X("E_CUT_");	
 	else DBG_871X("UNKNOWN_CUT(%d)_",ChipVersion.CUTVersion);
-
-	if(IS_1T1R(ChipVersion))	DBG_871X("1T1R_");
-	else if(IS_1T2R(ChipVersion))	DBG_871X("1T2R_");
+	
+	if(IS_1T1R(ChipVersion))	DBG_871X("1T1R_");	
+	else if(IS_1T2R(ChipVersion))	DBG_871X("1T2R_");	
 	else if(IS_2T2R(ChipVersion))	DBG_871X("2T2R_");
 	else DBG_871X("UNKNOWN_RFTYPE(%d)_",ChipVersion.RFType);
 
-
-	DBG_871X("RomVer(%d)\n",ChipVersion.ROMVer);
+	
+	DBG_871X("RomVer(%d)\n",ChipVersion.ROMVer);	
 }
 
 #endif
+
+#define	EEPROM_CHANNEL_PLAN_BY_HW_MASK	0x80
+
+u8	//return the final channel plan decision
+hal_com_get_channel_plan(
+	IN	PADAPTER	padapter,
+	IN	u8			hw_channel_plan,	//channel plan from HW (efuse/eeprom)
+	IN	u8			sw_channel_plan,	//channel plan from SW (registry/module param)
+	IN	u8			def_channel_plan,	//channel plan used when the former two is invalid
+	IN	BOOLEAN		AutoLoadFail
+	)
+{
+	u8 swConfig;
+	u8 chnlPlan;
+
+	swConfig = _TRUE;
+	if (!AutoLoadFail)
+	{
+		if (!rtw_is_channel_plan_valid(sw_channel_plan))
+			swConfig = _FALSE;
+		if (hw_channel_plan & EEPROM_CHANNEL_PLAN_BY_HW_MASK)
+			swConfig = _FALSE;
+	}
+
+	if (swConfig == _TRUE)
+		chnlPlan = sw_channel_plan;
+	else
+		chnlPlan = hw_channel_plan & (~EEPROM_CHANNEL_PLAN_BY_HW_MASK);
+
+	if (!rtw_is_channel_plan_valid(chnlPlan))
+		chnlPlan = def_channel_plan;
+
+	return chnlPlan;
+}
+

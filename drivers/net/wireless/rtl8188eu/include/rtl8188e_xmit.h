@@ -109,7 +109,7 @@
 
 enum TXDESC_SC{
 	SC_DONT_CARE = 0x00,
-	SC_UPPER= 0x01,
+	SC_UPPER= 0x01,	
 	SC_LOWER=0x02,
 	SC_DUPLICATE=0x03
 };
@@ -133,7 +133,7 @@ typedef struct txdescriptor_8188e
 
 	//Offset 4
 	u32 macid:6;
-	u32 rsvd0406:2;
+	u32 rsvd0406:2;	
 	u32 qsel:5;
 	u32 rd_nav_ext:1;
 	u32 lsig_txop_en:1;
@@ -183,7 +183,7 @@ typedef struct txdescriptor_8188e
 	u32 cts2self:1;
 	u32 rtsen:1;
 	u32 hw_rts_en:1;
-	u32 port_id:1;
+	u32 port_id:1;	
 	u32 pwr_status:3;
 	u32 wait_dcts:1;
 	u32 cts2ap_en:1;
@@ -247,9 +247,22 @@ void rtl8188eu_xmit_tasklet(void *priv);
 s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 #endif
 
+#ifdef CONFIG_PCI_HCI
+s32 rtl8188ee_init_xmit_priv(PADAPTER padapter);
+void rtl8188ee_free_xmit_priv(PADAPTER padapter);
+struct xmit_buf *rtl8188ee_dequeue_xmitbuf(struct rtw_tx_ring *ring);
+void	rtl8188ee_xmitframe_resume(_adapter *padapter);
+s32 rtl8188ee_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
+void rtl8188ee_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+void rtl8188ee_xmit_tasklet(void *priv);
+#endif
+
+
+
 #ifdef CONFIG_TX_EARLY_MODE
 void UpdateEarlyModeInfo8188E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmitbuf );
 #endif
 
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,struct tx_desc *ptxdesc);
 #endif //__RTL8188E_XMIT_H__
+

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -42,7 +42,7 @@ enum _CHIP_TYPE {
 	RTL8188C_8192C,
 	RTL8192D,
 	RTL8723A,
-	RTL8188E,
+	RTL8188E,	
 	MAX_CHIP_TYPE
 };
 
@@ -67,7 +67,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_SIFS,
 	HW_VAR_ACK_PREAMBLE,
 	HW_VAR_SEC_CFG,
-	HW_VAR_TX_BCN_DONE,
+	HW_VAR_BCN_VALID,
 	HW_VAR_RF_TYPE,
 	HW_VAR_DM_FLAG,
 	HW_VAR_DM_FUNC_OP,
@@ -97,12 +97,15 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_INITIAL_GAIN,
 	HW_VAR_TRIGGER_GPIO_0,
 	HW_VAR_BT_SET_COEXIST,
-	HW_VAR_BT_ISSUE_DELBA,
+	HW_VAR_BT_ISSUE_DELBA,	
 	HW_VAR_CURRENT_ANTENNA,
 	HW_VAR_ANTENNA_DIVERSITY_LINK,
 	HW_VAR_ANTENNA_DIVERSITY_SELECT,
 	HW_VAR_SWITCH_EPHY_WoWLAN,
+	HW_VAR_EFUSE_USAGE,
 	HW_VAR_EFUSE_BYTES,
+	HW_VAR_EFUSE_BT_USAGE,
+	HW_VAR_EFUSE_BT_BYTES,
 	HW_VAR_FIFO_CLEARN_UP,
 	HW_VAR_CHECK_TXBUF,
 	HW_VAR_APFM_ON_MAC, //Auto FSM to Turn On, include clock, isolation, power control for MAC only
@@ -111,11 +114,8 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_NAV_UPPER,
 	HW_VAR_C2H_HANDLE,
 	HW_VAR_RPT_TIMER_SETTING,
-	HW_VAR_TX_RPT_MAX_MACID,
+	HW_VAR_TX_RPT_MAX_MACID,	
 	HW_VAR_H2C_MEDIA_STATUS_RPT,
-#ifdef CONFIG_RECFG_AGC_TAB
-	HW_VAR_LPS_RF_ON_RECFG_AGC,
-#endif	//CONFIG_RECFG_AGC_TAB
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -136,7 +136,7 @@ typedef enum _HAL_DEF_VARIABLE{
 }HAL_DEF_VARIABLE;
 
 typedef enum _HAL_ODM_VARIABLE{
-	HAL_ODM_STA_INFO,
+	HAL_ODM_STA_INFO,	
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
 }HAL_ODM_VARIABLE;
@@ -192,7 +192,7 @@ struct hal_ops {
 	void	(*GetHalODMVarHandler)(PADAPTER Adapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet);
 	void	(*SetHalODMVarHandler)(PADAPTER Adapter, HAL_ODM_VARIABLE eVariable, PVOID pValue1,BOOLEAN bSet);
 
-	void	(*UpdateRAMaskHandler)(PADAPTER Adapter, u32 mac_id);
+	void	(*UpdateRAMaskHandler)(PADAPTER Adapter, u32 mac_id, u8 rssi_level);
 	void	(*SetBeaconRelatedRegistersHandler)(PADAPTER Adapter);
 
 	void	(*Add_RateATid)(PADAPTER Adapter, u32 bitmap, u8 arg);
@@ -214,17 +214,19 @@ struct hal_ops {
 #ifdef CONFIG_HOSTAPD_MLME
 	s32	(*hostap_mgnt_xmit_entry)(PADAPTER Adapter, _pkt *pkt);
 #endif
+
 	void (*EfusePowerSwitch)(PADAPTER pAdapter, u8 bWrite, u8 PwrState);
 	void (*ReadEFuse)(PADAPTER Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf, BOOLEAN bPseudoTest);
-	void (*EFUSEGetEfuseDefinition)(PADAPTER pAdapter, u8 efuseType, u8 type, PVOID *pOut, BOOLEAN bPseudoTest);
+	void (*EFUSEGetEfuseDefinition)(PADAPTER pAdapter, u8 efuseType, u8 type, void *pOut, BOOLEAN bPseudoTest);
 	u16	(*EfuseGetCurrentSize)(PADAPTER pAdapter, u8 efuseType, BOOLEAN bPseudoTest);
 	int 	(*Efuse_PgPacketRead)(PADAPTER pAdapter, u8 offset, u8 *data, BOOLEAN bPseudoTest);
 	int 	(*Efuse_PgPacketWrite)(PADAPTER pAdapter, u8 offset, u8 word_en, u8 *data, BOOLEAN bPseudoTest);
 	u8	(*Efuse_WordEnableDataWrite)(PADAPTER pAdapter, u16 efuse_addr, u8 word_en, u8 *data, BOOLEAN bPseudoTest);
-
+	BOOLEAN	(*Efuse_PgPacketWrite_BT)(PADAPTER pAdapter, u8 offset, u8 word_en, u8 *data, BOOLEAN bPseudoTest);
+	
 #ifdef DBG_CONFIG_ERROR_DETECT
 	void (*sreset_init_value)(_adapter *padapter);
-	void (*sreset_reset_value)(_adapter *padapter);
+	void (*sreset_reset_value)(_adapter *padapter);		
 	void (*silentreset)(_adapter *padapter);
 	void (*sreset_xmit_status_check)(_adapter *padapter);
 	void (*sreset_linked_status_check) (_adapter *padapter);
@@ -333,3 +335,4 @@ void rtw_sreset_init(_adapter *padapter);
 #endif
 
 #endif //__HAL_INIT_H__
+

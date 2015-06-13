@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -64,7 +64,7 @@ enum WIFI_FRAME_TYPE {
 	WIFI_MGT_TYPE  =	(0),
 	WIFI_CTRL_TYPE =	(BIT(2)),
 	WIFI_DATA_TYPE =	(BIT(3)),
-	WIFI_QOS_DATA_TYPE	= (BIT(7)|BIT(3)),	//!< QoS Data
+	WIFI_QOS_DATA_TYPE	= (BIT(7)|BIT(3)),	//!< QoS Data	
 };
 
 enum WIFI_FRAME_SUBTYPE {
@@ -193,7 +193,7 @@ enum WIFI_STATUS_CODE {
 #define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
 #define WLAN_STATUS_ASSOC_DENIED_RATES 18
 #endif
-//entended
+//entended 
 /* IEEE 802.11b */
 #define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
 #define WLAN_STATUS_ASSOC_DENIED_NOPBCC 20
@@ -408,7 +408,7 @@ enum WIFI_REG_DOMAIN {
 #define SetAMsdu(pbuf, amsdu)	\
 	do	{	\
 		*(unsigned short *)(pbuf) |= cpu_to_le16( (amsdu & 1) << 7); \
-	} while(0)
+	} while(0)	
 
 #define GetAid(pbuf)	(cpu_to_le16(*(unsigned short *)((SIZE_PTR)(pbuf) + 2)) & 0x3fff)
 
@@ -503,7 +503,7 @@ __inline static unsigned char * get_hdr_bssid(unsigned char *pframe)
 		case 0x03:	// ToDs=1, FromDs=1
 			sa = GetAddr1Ptr(pframe);
 			break;
-		default:
+		default:	
 			sa =NULL; //???????
 			break;
 	}
@@ -627,7 +627,7 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 #define _WEP_104_PRIVACY_		5
 #define _WEP_WPA_MIXED_PRIVACY_ 6	// WEP + WPA
 */
-
+				
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM
 ------------------------------------------------------------------------------*/
@@ -636,15 +636,8 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 
 
 /*-----------------------------------------------------------------------------
-				Below is the definition for 802.11n
+				Below is the definition for 802.11n 
 ------------------------------------------------------------------------------*/
-
-/* block-ack parameters */
-#define IEEE80211_ADDBA_PARAM_POLICY_MASK 0x0002
-#define IEEE80211_ADDBA_PARAM_TID_MASK 0x003C
-#define RTW_IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK 0xFFA0
-#define IEEE80211_DELBA_PARAM_TID_MASK 0xF000
-#define IEEE80211_DELBA_PARAM_INITIATOR_MASK 0x0800
 
 //#ifdef CONFIG_80211N_HT
 
@@ -688,7 +681,7 @@ struct rtw_ieee80211_bar {
  * This structure refers to "HT capabilities element" as
  * described in 802.11n draft section 7.3.2.52
  */
-
+ 
 struct rtw_ieee80211_ht_cap {
 	unsigned short 	cap_info;
 	unsigned char 	ampdu_params_info;
@@ -716,9 +709,9 @@ struct ieee80211_ht_addt_info {
 struct HT_caps_element
 {
 	union
-	{
-		struct
-		{
+	{ 
+		struct 
+		{ 	
 			unsigned short	HT_caps_info;
 			unsigned char	AMPDU_para;
 			unsigned char	MCS_rate[16];
@@ -789,9 +782,9 @@ struct ieee80211_ht_addt_info {
 struct HT_caps_element
 {
 	union
-	{
-		struct
-		{
+	{ 
+		struct 
+		{ 	
 			unsigned short	HT_caps_info;
 			unsigned char	AMPDU_para;
 			unsigned char	MCS_rate[16];
@@ -841,7 +834,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 	MAX_AMPDU_FACTOR_8K		= 0,
 	MAX_AMPDU_FACTOR_16K	= 1,
 	MAX_AMPDU_FACTOR_32K	= 2,
-	MAX_AMPDU_FACTOR_64K	= 3,
+	MAX_AMPDU_FACTOR_64K	= 3,	
 }HT_CAP_AMPDU_FACTOR;
 
 /* 802.11n HT capabilities masks */
@@ -880,7 +873,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 /* block-ack parameters */
 #define IEEE80211_ADDBA_PARAM_POLICY_MASK 0x0002
 #define IEEE80211_ADDBA_PARAM_TID_MASK 0x003C
-#define RTW_IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK 0xFFA0
+#define RTW_IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK 0xFFC0
 #define IEEE80211_DELBA_PARAM_TID_MASK 0xF000
 #define IEEE80211_DELBA_PARAM_INITIATOR_MASK 0x0800
 
@@ -1131,7 +1124,7 @@ enum P2P_ROLE {
 	P2P_ROLE_DISABLE = 0,
 	P2P_ROLE_DEVICE = 1,
 	P2P_ROLE_CLIENT = 2,
-	P2P_ROLE_GO = 3
+	P2P_ROLE_GO = 3	
 };
 
 enum P2P_STATE {
@@ -1143,7 +1136,7 @@ enum P2P_STATE {
 	P2P_STATE_FIND_PHASE_SEARCH = 5,		//	In the search state of find phase
 	P2P_STATE_TX_PROVISION_DIS_REQ = 6,	//	In P2P provisioning discovery
 	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
-	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
+	P2P_STATE_RX_PROVISION_DIS_REQ = 8,	
 	P2P_STATE_GONEGO_ING = 9,				//	Doing the group owner negoitation handshake
 	P2P_STATE_GONEGO_OK = 10,				//	finish the group negoitation handshake with success
 	P2P_STATE_GONEGO_FAIL = 11,			//	finish the group negoitation handshake with failure
@@ -1166,7 +1159,7 @@ enum P2P_PROTO_WK_ID
 	P2P_FIND_PHASE_WK = 0,
 	P2P_RESTORE_STATE_WK = 1,
 	P2P_PRE_TX_PROVDISC_PROCESS_WK = 2,
-	P2P_PRE_TX_NEGOREQ_PROCESS_WK = 3,
+	P2P_PRE_TX_NEGOREQ_PROCESS_WK = 3,	
 	P2P_AP_P2P_CH_SWITCH_PROCESS_WK =4,
 	P2P_RO_CH_WK = 5,
 };
@@ -1204,3 +1197,4 @@ enum P2P_PS
 
 
 #endif // _WIFI_H_
+

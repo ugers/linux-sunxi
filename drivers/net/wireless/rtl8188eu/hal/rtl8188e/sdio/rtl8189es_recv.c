@@ -194,7 +194,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 	padapter = (PADAPTER)priv;
 	pHalData = GET_HAL_DATA(padapter);
 	precvpriv = &padapter->recvpriv;
-
+	
 	do {
 		precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue);
 		if (NULL == precvbuf) break;
@@ -317,7 +317,7 @@ static void rtl8188es_recv_tasklet(void *priv)
 						printk("rx USB HISR \n");
 					}
 
-					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);					
 
 				}
 			}
@@ -337,3 +337,4 @@ static void rtl8188es_recv_tasklet(void *priv)
 	} while (1);
 
 }
+

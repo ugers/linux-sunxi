@@ -141,7 +141,7 @@ int _rtw_write8(_adapter *adapter, u32 addr, u8 val)
 
 	ret = _write8(pintfhdl, addr, val);
 	_func_exit_;
-
+	
 	return RTW_STATUS_CODE(ret);
 }
 int _rtw_write16(_adapter *adapter, u32 addr, u16 val)
@@ -169,7 +169,7 @@ int _rtw_write32(_adapter *adapter, u32 addr, u32 val)
 	int ret;
 	_func_enter_;
 	_write32 = pintfhdl->io_ops._write32;
-
+	
 	val = rtw_cpu_to_le32(val);
 	ret = _write32(pintfhdl, addr, val);
 	_func_exit_;
@@ -249,7 +249,7 @@ void _rtw_read_mem(_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 	if( (adapter->bDriverStopped ==_TRUE) || (adapter->bSurpriseRemoved == _TRUE))
 	{
-	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_, ("rtw_read_mem:bDriverStopped(%d) OR bSurpriseRemoved(%d)", adapter->bDriverStopped, adapter->bSurpriseRemoved));
+	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_, ("rtw_read_mem:bDriverStopped(%d) OR bSurpriseRemoved(%d)", adapter->bDriverStopped, adapter->bSurpriseRemoved));	    
 	     return;
 	}
 
@@ -289,7 +289,7 @@ void _rtw_read_port(_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 
 	if( (adapter->bDriverStopped ==_TRUE) || (adapter->bSurpriseRemoved == _TRUE))
 	{
-	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_, ("rtw_read_port:bDriverStopped(%d) OR bSurpriseRemoved(%d)", adapter->bDriverStopped, adapter->bSurpriseRemoved));
+	     RT_TRACE(_module_rtl871x_io_c_, _drv_info_, ("rtw_read_port:bDriverStopped(%d) OR bSurpriseRemoved(%d)", adapter->bDriverStopped, adapter->bSurpriseRemoved));	    
 	     return;
 	}
 
@@ -324,7 +324,7 @@ void _rtw_write_port(_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 	_func_enter_;
 
 	_write_port = pintfhdl->io_ops._write_port;
-
+	
 	_write_port(pintfhdl, addr, cnt, pmem);
 
 	 _func_exit_;
@@ -338,7 +338,7 @@ int _rtw_write_port_sync(_adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 	struct io_priv *pio_priv = &adapter->iopriv;
 	struct	intf_hdl		*pintfhdl = &(pio_priv->intf);
 	int ret = _SUCCESS;
-
+	
 	_func_enter_;
 
 	_write_port_sync = pintfhdl->io_ops._write_port_sync;
@@ -404,21 +404,21 @@ int dbg_rtw_write8(_adapter *adapter, u32 addr, u8 val, const char *caller, cons
 {
 	if(addr + 1 > DBG_IO_WRITE_SNIFF_ADDR_START && addr <= DBG_IO_WRITE_SNIFF_ADDR_END)
 		DBG_871X("DBG_IO %s:%d rtw_write8(0x%04x, 0x%02x)\n", caller, line, addr, val);
-
+	
 	return _rtw_write8(adapter, addr, val);
 }
 int dbg_rtw_write16(_adapter *adapter, u32 addr, u16 val, const char *caller, const int line)
 {
 	if(addr + 2 > DBG_IO_WRITE_SNIFF_ADDR_START && addr <= DBG_IO_WRITE_SNIFF_ADDR_END)
 		DBG_871X("DBG_IO %s:%d rtw_write16(0x%04x, 0x%04x)\n", caller, line, addr, val);
-
+	
 	return _rtw_write16(adapter, addr, val);
 }
 int dbg_rtw_write32(_adapter *adapter, u32 addr, u32 val, const char *caller, const int line)
 {
 	if(addr + 4 > DBG_IO_WRITE_SNIFF_ADDR_START && addr <= DBG_IO_WRITE_SNIFF_ADDR_END)
 		DBG_871X("DBG_IO %s:%d rtw_write32(0x%04x, 0x%08x)\n", caller, line, addr, val);
-
+	
 	return _rtw_write32(adapter, addr, val);
 }
 int dbg_rtw_writeN(_adapter *adapter, u32 addr ,u32 length , u8 *data, const char *caller, const int line)
@@ -429,3 +429,5 @@ int dbg_rtw_writeN(_adapter *adapter, u32 addr ,u32 length , u8 *data, const cha
 	return _rtw_writeN(adapter, addr, length, data);
 }
 #endif
+
+

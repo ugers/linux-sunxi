@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -36,9 +36,23 @@
 #define __HALBT_C__ 1
 
 #ifdef __BT_C__ // COMMON/BT.h
+
+// HEADER/PlatformDef.h
+typedef enum _RT_MEDIA_STATUS {
+	RT_MEDIA_DISCONNECT = 0,
+	RT_MEDIA_CONNECT       = 1
+} RT_MEDIA_STATUS;
+
 // ===== Below this line is sync from SD7 driver COMMON/BT.h =====
 
 #define	BT_TMP_BUF_SIZE		100
+
+void BT_WifiScanNotify(PADAPTER padapter, u8 scanType);
+void BT_WifiAssociateNotify(PADAPTER padapter, u8 action);
+void BT_WifiMediaStatusNotify(PADAPTER padapter, RT_MEDIA_STATUS mstatus);
+void BT_SpecialPacketNotify(PADAPTER padapter);
+void BT_HaltProcess(PADAPTER padapter);
+void BT_LpsLeave(PADAPTER padapter);
 
 // ===== End of sync from SD7 driver COMMON/BT.h =====
 #endif // __BT_C__
@@ -1195,8 +1209,8 @@ typedef enum _HCI_WIFI_CONNECT_STATUS
 typedef enum _HCI_EXT_BT_OPERATION
 {
 	HCI_BT_OP_NONE				= 0x0,
-	HCI_BT_OP_INQUIRE_START		= 0x1,
-	HCI_BT_OP_INQUIRE_FINISH		= 0x2,
+	HCI_BT_OP_INQUIRY_START		= 0x1,
+	HCI_BT_OP_INQUIRY_FINISH		= 0x2,
 	HCI_BT_OP_PAGING_START		= 0x3,
 	HCI_BT_OP_PAGING_SUCCESS		= 0x4,
 	HCI_BT_OP_PAGING_UNSUCCESS	= 0x5,
@@ -1227,6 +1241,7 @@ void BTHCI_EventParse(PADAPTER padapter, void *pEvntData, u32 dataLen);
 #define BT_EventParse BTHCI_EventParse
 u8 BTHCI_HsConnectionEstablished(PADAPTER padapter);
 void BTHCI_UpdateBTProfileRTKToMoto(PADAPTER padapter);
+void BTHCI_WifiScanNotify(PADAPTER padapter, u8 scanType);
 void BTHCI_StateMachine(PADAPTER padapter, u8 StateToEnter, HCI_STATE_WITH_CMD StateCmd, u8 EntryNum);
 void BTHCI_DisconnectPeer(PADAPTER padapter, u8 EntryNum);
 void BTHCI_EventNumOfCompletedDataBlocks(PADAPTER padapter);
@@ -1239,6 +1254,32 @@ HCI_STATUS BTHCI_HandleHCICMD(PADAPTER padapter, PPACKET_IRP_HCICMD_DATA pHciCmd
 
 #ifdef __HALBTC87231ANT_C__ // HAL/BTCoexist/HalBtc87231Ant.h
 // ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc87231Ant.h =====
+
+#define	BTC_FOR_SCAN_START				1
+#define	BTC_FOR_SCAN_FINISH				0
+
+#define	BT_TXRX_CNT_THRES_1				1200
+#define	BT_TXRX_CNT_THRES_2				1400
+#define	BT_TXRX_CNT_THRES_3				3000
+#define	BT_TXRX_CNT_LEVEL_0				0	// < 1200
+#define	BT_TXRX_CNT_LEVEL_1				1	// >= 1200 && < 1400
+#define	BT_TXRX_CNT_LEVEL_2				2	// >= 1400
+#define	BT_TXRX_CNT_LEVEL_3				3	// >= 3000
+
+typedef enum _BT_STATE_1ANT{
+	BT_INFO_STATE_DISABLED			= 0,
+	BT_INFO_STATE_NO_CONNECTION		= 1,
+	BT_INFO_STATE_CONNECT_IDLE		= 2,
+	BT_INFO_STATE_INQ_OR_PAG		= 3,
+	BT_INFO_STATE_ACL_ONLY_BUSY		= 4,
+	BT_INFO_STATE_SCO_ONLY_BUSY		= 5,
+	BT_INFO_STATE_ACL_SCO_BUSY		= 6,
+	BT_INFO_STATE_HID					= 7,
+	BT_INFO_STATE_A2DP				= 8,
+	BT_INFO_STATE_HIDA2DP			= 9,
+	BT_INFO_STATE_PANA2DP			= 10,
+	BT_INFO_STATE_MAX				= 11
+} BT_STATE_1ANT, *PBT_STATE_1ANT;
 
 typedef struct _BTDM_8723A_1ANT
 {
@@ -1255,7 +1296,11 @@ typedef struct _BTDM_8723A_1ANT
 
 	u32		psTdmaMonitorCnt;
 	u32		psTdmaGlobalCnt;
+
+	u8		bWiFiHalt;
 } BTDM_8723A_1ANT, *PBTDM_8723A_1ANT;
+
+void BTDM_1AntBtCoexist8723A(PADAPTER padapter);
 
 // ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87231Ant.h =====
 #endif // __HALBTC87231ANT_C__
@@ -1300,19 +1345,13 @@ typedef struct _BTDM_8723A_2ANT
 	u8		btRetryIndex;
 
 	u8		bDecBtPwr;
+	u8		bInqCnt;
 } BTDM_8723A_2ANT, *PBTDM_8723A_2ANT;
-
+void BTDM_2AntBtCoexist8723A(PADAPTER padapter);
 // ===== End of sync from SD7 driver HAL/BTCoexist/HalBtc87232Ant.h =====
 #endif // __HALBTC87232ANT_C__
 
 #ifdef __HALBTC8723_C__ // HAL/BTCoexist/HalBtc8723.h
-
-// HEADER/PlatformDef.h
-typedef enum _RT_MEDIA_STATUS {
-	RT_MEDIA_DISCONNECT = 0,
-	RT_MEDIA_CONNECT       = 1
-} RT_MEDIA_STATUS;
-
 // ===== Below this line is sync from SD7 driver HAL/BTCoexist/HalBtc8723.h =====
 
 #define	BT_Q_PKT_OFF		0
@@ -1345,16 +1384,14 @@ typedef enum _RT_MEDIA_STATUS {
 #define	BT_RF_RX_LPF_CORNER_RESUME			0
 #define	BT_RF_RX_LPF_CORNER_SHRINK			1
 
-typedef enum _BT_STATE_1ANT{
-	BT_INFO_STATE_DISABLED			= 0,
-	BT_INFO_STATE_NO_CONNECTION		= 1,
-	BT_INFO_STATE_CONNECT_IDLE		= 2,
-	BT_INFO_STATE_INQ_OR_PAG		= 3,
-	BT_INFO_STATE_ACL_ONLY_BUSY		= 4,
-	BT_INFO_STATE_SCO_ONLY_BUSY		= 5,
-	BT_INFO_STATE_ACL_SCO_BUSY		= 6,
-	BT_INFO_STATE_MAX				= 7
-} BT_STATE_1ANT, *PBT_STATE_1ANT;
+#define	BTINFO_B_FTP					BIT(7)
+#define	BTINFO_B_A2DP					BIT(6)
+#define	BTINFO_B_HID					BIT(5)
+#define	BTINFO_B_SCO_BUSY				BIT(4)
+#define	BTINFO_B_ACL_BUSY				BIT(3)
+#define	BTINFO_B_INQ_PAGE				BIT(2)
+#define	BTINFO_B_SCO_ESCO				BIT(1)
+#define	BTINFO_B_CONNECTION				BIT(0)
 
 typedef struct _BT_COEXIST_8723A
 {
@@ -1366,9 +1403,18 @@ typedef struct _BT_COEXIST_8723A
 	u8					TotalAntNum;
 	u8					bC2hBtInfoSupport;
 	u8					c2hBtInfo;
+	u8					c2hBtInfoOriginal;
+	u8					prec2hBtInfo; // for 1Ant
+	u8					bC2hBtInquiryPage;
+//	u8					btInquiryPageCnt;
+	u64					btInqPageStartTime; // for 2Ant
+	u8					c2hBtProfile; // for 1Ant
+	u8					btRetryCnt;
 	u8					bC2hBtInfoReqSent;
 	u8					bForceFwBtInfo;
 	u8					bForceA2dpSink;
+//	u8					bForceLps;
+//	u8					bBtPwrSaveMode;
 	BTDM_8723A_2ANT			btdm2Ant;
 	BTDM_8723A_1ANT			btdm1Ant;
 } BT_COEXIST_8723A, *PBT_COEXIST_8723A;
@@ -1381,6 +1427,7 @@ void BTDM_SetSwRfRxLpfCorner(PADAPTER padapter, u8 type);
 void BTDM_SetSwPenaltyTxRateAdaptive(PADAPTER padapter, u8 raType);
 void BTDM_SetFwDecBtPwr(PADAPTER padapter, u8 bDecBtPwr);
 u8 BTDM_BtProfileSupport(PADAPTER padapter);
+void BTDM_LpsLeave(PADAPTER padapter);
 u8 BTDM_1Ant8723A(PADAPTER padapter);
 #define BT_1Ant BTDM_1Ant8723A
 
@@ -1483,7 +1530,7 @@ void BTDM_DiminishWiFi(PADAPTER Adapter, u8 bDACOn, u8 bInterruptOn, u8 DACSwing
 #define BT_COEX_STATE_WIFI_UPLINK			BIT(9)
 #define BT_COEX_STATE_WIFI_DOWNLINK		BIT(10)
 
-#define BT_COEX_STATE_HOLD_FOR_BT_OPERATION	BIT(11)
+#define BT_COEX_STATE_BT_INQ_PAGE	BIT(11)
 #define BT_COEX_STATE_BT_IDLE				BIT(12)
 #define BT_COEX_STATE_BT_UPLINK			BIT(13)
 #define BT_COEX_STATE_BT_DOWNLINK		BIT(14)
@@ -1509,6 +1556,15 @@ void BTDM_DiminishWiFi(PADAPTER Adapter, u8 bDACOn, u8 bInterruptOn, u8 DACSwing
 #define BT_COEX_STATE_WIFI_RSSI_BEACON_MEDIUM		BIT(28)
 #define BT_COEX_STATE_WIFI_RSSI_BEACON_HIGH		BIT(29)
 
+
+#define BT_COEX_STATE_BTINFO_COMMON				BIT30
+#define BT_COEX_STATE_BTINFO_B_HID_SCOESCO		BIT31
+#define BT_COEX_STATE_BTINFO_B_FTP_A2DP			BIT32
+
+#define BT_COEX_STATE_BT_CNT_LEVEL_0				BIT33
+#define BT_COEX_STATE_BT_CNT_LEVEL_1				BIT34
+#define BT_COEX_STATE_BT_CNT_LEVEL_2				BIT35
+#define BT_COEX_STATE_BT_CNT_LEVEL_3				BIT36
 
 #define BT_RSSI_STATE_HIGH					0
 #define BT_RSSI_STATE_MEDIUM				1
@@ -1537,8 +1593,10 @@ void BTDM_DiminishWiFi(PADAPTER Adapter, u8 bDACOn, u8 bInterruptOn, u8 DACSwing
 #define	BT_COEX_MECH_HID_A2DP			5
 #define	BT_COEX_MECH_HID_PAN			6
 #define	BT_COEX_MECH_PAN_A2DP			7
-#define	BT_COEX_MECH_COMMON			8
-#define	BT_COEX_MECH_MAX				9
+#define	BT_COEX_MECH_HID_SCO_ESCO		8
+#define	BT_COEX_MECH_FTP_A2DP			9
+#define	BT_COEX_MECH_COMMON			10
+#define	BT_COEX_MECH_MAX				11
 //===========================================
 //	BT Dbg Ctrl
 //===========================================
@@ -1569,8 +1627,8 @@ typedef struct _BT_COEXIST_STR
 	u8					bBTTrafficModeSet;
 	u8					bBTNonTrafficModeSet;
 	BT_TRAFFIC_STATISTICS		BT21TrafficStatistics;
-	u32					CurrentState;
-	u32					PreviousState;
+	u64					CurrentState;
+	u64					PreviousState;
 	u8					preRssiState;
 	u8					preRssiState1;
 	u8					preRssiStateBeacon;
@@ -1601,6 +1659,7 @@ typedef struct _BT_COEXIST_STR
 }BT_COEXIST_STR, *PBT_COEXIST_STR;
 
 
+void BTDM_CheckAntSelMode(PADAPTER padapter);
 void BTDM_FwC2hBtRssi(PADAPTER padapter, u8 *tmpBuf);
 #define BT_FwC2hBtRssi BTDM_FwC2hBtRssi
 void BTDM_FwC2hBtInfo(PADAPTER padapter, u8 *tmpBuf, u8 length);
@@ -1624,8 +1683,10 @@ void BTDM_FWCoexAllOff(PADAPTER padapter);
 void BTDM_SWCoexAllOff(PADAPTER padapter);
 void BTDM_HWCoexAllOff(PADAPTER padapter);
 void BTDM_CoexAllOff(PADAPTER padapter);
+void BTDM_TurnOffBtCoexistBeforeEnterIPS(PADAPTER padapter);
 void BTDM_Coexist(PADAPTER padapter);
 #define BT_CoexistMechanism BTDM_Coexist
+void BTDM_UpdateCoexState(PADAPTER padapter);
 u8 BTDM_IsSameCoexistState(PADAPTER padapter);
 void BTDM_PWDBMonitor(PADAPTER padapter);
 u8 BTDM_IsBTBusy(PADAPTER padapter);
@@ -1638,6 +1699,11 @@ u8 BTDM_IsBTHSMode(PADAPTER padapter);
 u8 BTDM_IsBTUplink(PADAPTER padapter);
 u8 BTDM_IsBTDownlink(PADAPTER padapter);
 void BTDM_AdjustForBtOperation(PADAPTER padapter);
+void BTDM_ForHalt(PADAPTER padapter);
+void BTDM_WifiScanNotify(PADAPTER padapter, u8 scanType);
+void BTDM_WifiAssociateNotify(PADAPTER padapter, u8 action);
+void BTDM_MediaStatusNotify(PADAPTER padapter, RT_MEDIA_STATUS mstatus);
+void BTDM_ForDhcp(PADAPTER padapter);
 void BTDM_ResetActionProfileState(PADAPTER padapter);
 void BTDM_SetBtCoexCurrAntNum(PADAPTER padapter, u8 antNum);
 #define BT_SetBtCoexCurrAntNum BTDM_SetBtCoexCurrAntNum
@@ -1648,6 +1714,10 @@ u8 BTDM_IsActionPAN(PADAPTER padapter);
 u8 BTDM_IsActionHIDA2DP(PADAPTER padapter);
 u8 BTDM_IsActionHIDPAN(PADAPTER padapter);
 u8 BTDM_IsActionPANA2DP(PADAPTER padapter);
+u8 BTDM_IsBtDisabled(PADAPTER padapter);
+#define BT_IsBtDisabled BTDM_IsBtDisabled
+u32 BTDM_BtTxRxCounterH(PADAPTER padapter);
+u32 BTDM_BtTxRxCounterL(PADAPTER padapter);
 
 // ===== End of sync from SD7 driver HAL/BTCoexist/HalBtCoexist.h =====
 #endif // __HALBTCOEXIST_C__
@@ -1675,3 +1745,4 @@ void HALBT_SetRtsCtsNoLenLimit(PADAPTER padapter);
 #endif // __HALBT_C__
 
 #endif // __RTL8723A_BT_COEXIST_H__
+

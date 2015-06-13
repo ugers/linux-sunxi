@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -65,7 +65,7 @@ u32 read_macreg(_adapter *padapter, u32 addr, u32 sz)
 	}
 
 	return val;
-
+	
 }
 
 void write_macreg(_adapter *padapter, u32 addr, u32 val, u32 sz)
@@ -335,12 +335,13 @@ void free_mp_priv(struct mp_priv *pmp_priv)
 	pmp_priv->pmp_xmtframe_buf = NULL;
 }
 
-#ifdef CONFIG_RTL8192C
+#if defined (CONFIG_RTL8192C) || defined (CONFIG_RTL8723A)
 #define PHY_IQCalibrate(a,b)	rtl8192c_PHY_IQCalibrate(a,b)
 #define PHY_LCCalibrate(a)	rtl8192c_PHY_LCCalibrate(a)
 //#define dm_CheckTXPowerTracking(a)	rtl8192c_odm_CheckTXPowerTracking(a)
 #define PHY_SetRFPathSwitch(a,b)	rtl8192c_PHY_SetRFPathSwitch(a,b)
 #endif
+
 
 #ifdef CONFIG_RTL8192D
 #define PHY_IQCalibrate(a)	rtl8192d_PHY_IQCalibrate(a)
@@ -405,7 +406,7 @@ MPT_InitializeAdapter(
 
 	//ledsetting = rtw_read32(pAdapter, REG_LEDCFG0);
 	//rtw_write32(pAdapter, REG_LEDCFG0, ledsetting & ~LED0DIS);
-
+	
 	if(IS_HARDWARE_TYPE_8192DU(pAdapter))
 	{
 		rtw_write32(pAdapter, REG_LEDCFG0, 0x8888);
@@ -414,7 +415,7 @@ MPT_InitializeAdapter(
 	{
 		rtw_write32(pAdapter, REG_LEDCFG0, 0x08080);
 	}
-
+	
 #ifdef CONFIG_RTL8192C
 	PHY_IQCalibrate(pAdapter, _FALSE);
 	dm_CheckTXPowerTracking(&pHalData->odmpriv);	//trigger thermal meter
@@ -847,7 +848,7 @@ void	SetAntennaPathPower(PADAPTER pAdapter)
 {
 	Hal_SetAntennaPathPower(pAdapter);
 }
-
+	
 void SetTxPower(PADAPTER pAdapter)
 {
 	Hal_SetTxPower(pAdapter);
@@ -871,6 +872,12 @@ void SetDataRate(PADAPTER pAdapter)
 	Hal_SetDataRate(pAdapter);
 }
 
+void MP_PHY_SetRFPathSwitch(PADAPTER pAdapter ,BOOLEAN bMain)
+{
+
+	PHY_SetRFPathSwitch(pAdapter,bMain);
+
+}
 
 #if defined (CONFIG_RTL8712)
 /*------------------------------Define structure----------------------------*/
@@ -1036,7 +1043,7 @@ exit:
 }
 
 void fill_txdesc_for_mp(PADAPTER padapter, struct tx_desc *ptxdesc)
-{
+{		
 	struct mp_priv *pmp_priv = &padapter->mppriv;
 	_rtw_memcpy(ptxdesc, &(pmp_priv->tx.desc), TXDESC_SIZE);
 }
@@ -1248,7 +1255,7 @@ u32 GetPhyRxPktCRC32Error(PADAPTER pAdapter)
 //reg 0x808[9:0]: FFT data x
 //reg 0x808[22]:  0  -->  1  to get 1 FFT data y
 //reg 0x8B4[15:0]: FFT data y report
-static u32 GetPSDData(PADAPTER pAdapter, u32 point)
+static u32 rtw_GetPSDData(PADAPTER pAdapter, u32 point)
 {
 	int psd_val;
 
@@ -1299,7 +1306,7 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 	if (strlen(data) == 0) { //default value
 		psd_pts = 128;
 		psd_start = 64;
-		psd_stop = 128;
+		psd_stop = 128;   
 	} else {
 		sscanf(data, "pts=%d,start=%d,stop=%d", &psd_pts, &psd_start, &psd_stop);
 	}
@@ -1310,9 +1317,9 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 	while (i < psd_stop)
 	{
 		if (i >= psd_pts) {
-			psd_data = GetPSDData(pAdapter, i-psd_pts);
+			psd_data = rtw_GetPSDData(pAdapter, i-psd_pts);
 		} else {
-			psd_data = GetPSDData(pAdapter, i);
+			psd_data = rtw_GetPSDData(pAdapter, i);
 		}
 		sprintf(data, "%s%x ", data, psd_data);
 		i++;
@@ -1337,17 +1344,18 @@ u32 rtw_atoi(u8* s)
 	{
 	  if(s[i] >= '0' && s[i] <= '9')
 		 num = num * 10 + s[i] -'0';
-	  else if(s[0] == '-' && i==0)
+	  else if(s[0] == '-' && i==0) 
 		 flag =1;
-	  else
+	  else 
 		  break;
 	 }
 
 	if(flag == 1)
 	   num = num * -1;
 
-	 return(num);
+	 return(num); 
 
 }
 
 #endif
+

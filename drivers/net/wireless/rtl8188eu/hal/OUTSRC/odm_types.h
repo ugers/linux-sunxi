@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -23,7 +23,7 @@
 //
 // Define Different SW team support
 //
-#define	ODM_AP		 	0x01	 //BIT0
+#define	ODM_AP		 	0x01	 //BIT0 
 #define	ODM_ADSL	 	0x02	//BIT1
 #define	ODM_CE		 	0x04	//BIT2
 #define	ODM_MP		 	0x08	//BIT3
@@ -32,7 +32,7 @@
 
 // Deifne HW endian support
 #define	ODM_ENDIAN_BIG	0
-#define	ODM_ENDIAN_LITTLE	1
+#define	ODM_ENDIAN_LITTLE	1	
 
 #if (DM_ODM_SUPPORT_TYPE != ODM_MP)
 #define 	RT_PCI_INTERFACE				1
@@ -68,7 +68,7 @@ typedef enum _RT_SPINLOCK_TYPE{
 	RT_RM_SPINLOCK = 3,
 	RT_CAM_SPINLOCK = 4,
 	RT_SCAN_SPINLOCK = 5,
-	RT_LOG_SPINLOCK = 7,
+	RT_LOG_SPINLOCK = 7, 
 	RT_BW_SPINLOCK = 8,
 	RT_CHNLOP_SPINLOCK = 9,
 	RT_RF_OPERATE_SPINLOCK = 10,
@@ -81,7 +81,7 @@ typedef enum _RT_SPINLOCK_TYPE{
 	//Shall we define Ndis 6.2 SpinLock Here ?
 	RT_PORT_SPINLOCK=16,
 	RT_VNIC_SPINLOCK=17,
-	RT_HVL_SPINLOCK=18,
+	RT_HVL_SPINLOCK=18,	
 	RT_H2C_SPINLOCK = 20, // For H2C cmd. Added by tynli. 2009.11.09.
 
 	RT_BTData_SPINLOCK=25,
@@ -89,13 +89,15 @@ typedef enum _RT_SPINLOCK_TYPE{
 	RT_WAPI_OPTION_SPINLOCK=26,
 	RT_WAPI_RX_SPINLOCK=27,
 
-      // add for 92D CCK control issue
+      // add for 92D CCK control issue  
 	RT_CCK_PAGEA_SPINLOCK = 28,
 	RT_BUFFER_SPINLOCK = 29,
 	RT_CHANNEL_AND_BANDWIDTH_SPINLOCK = 30,
 	RT_GEN_TEMP_BUF_SPINLOCK = 31,
 	RT_AWB_SPINLOCK = 32,
 	RT_FW_PS_SPINLOCK = 33,
+	RT_HW_TIMER_SPIN_LOCK = 34,
+	RT_MPT_WI_SPINLOCK = 35
 }RT_SPINLOCK_TYPE;
 
 #endif
@@ -105,8 +107,10 @@ typedef enum _RT_SPINLOCK_TYPE{
 	#define	STA_INFO_T			RT_WLAN_STA
 	#define	PSTA_INFO_T			PRT_WLAN_STA
 
-	typedef unsigned long			u4Byte,*pu4Byte;
-	#define CONFIG_HW_ANTENNA_DIVERSITY
+//    typedef unsigned long		u4Byte,*pu4Byte;
+	#define CONFIG_HW_ANTENNA_DIVERSITY 
+#define CONFIG_SW_ANTENNA_DIVERSITY 
+
 #elif (DM_ODM_SUPPORT_TYPE == ODM_AP)
 
 	// To let ADSL/AP project compile ok; it should be removed after all conflict are solved. Added by Annie, 2011-10-07.
@@ -133,12 +137,12 @@ typedef enum _RT_SPINLOCK_TYPE{
 	typedef struct stat_info		STA_INFO_T,*PSTA_INFO_T;
 	typedef struct timer_list		RT_TIMER, *PRT_TIMER;
 	typedef  void *					RT_TIMER_CALL_BACK;
-
+	
 	#define 	DEV_BUS_TYPE  		RT_PCI_INTERFACE
-
+	
 	#define _TRUE				1
 	#define _FALSE				0
-
+	
 #elif (DM_ODM_SUPPORT_TYPE == ODM_ADSL)
 
 	// To let ADSL/AP project compile ok; it should be removed after all conflict are solved. Added by Annie, 2011-10-07.
@@ -160,9 +164,9 @@ typedef enum _RT_SPINLOCK_TYPE{
 	typedef struct stat_info		STA_INFO_T,*PSTA_INFO_T;
 	typedef struct timer_list		RT_TIMER, *PRT_TIMER;
 	typedef  void *				RT_TIMER_CALL_BACK;
-
+	
 	#define DEV_BUS_TYPE  	RT_PCI_INTERFACE
-
+	
 	#define _TRUE				1
 	#define _FALSE				0
 
@@ -180,29 +184,29 @@ typedef enum _RT_SPINLOCK_TYPE{
 	typedef s64					s8Byte,*ps8Byte;
 #else
 	#define u1Byte 		u8
-	#define pu1Byte 		u8*
+	#define pu1Byte 		u8*	
 
 	#define u2Byte 		u16
-	#define pu2Byte 		u16*
+	#define pu2Byte 		u16*		
 
 	#define u4Byte 		u32
-	#define pu4Byte 		u32*
+	#define pu4Byte 		u32*	
 
 	#define u8Byte 		u64
 	#define pu8Byte 		u64*
 
 	#define s1Byte 		s8
-	#define ps1Byte 		s8*
+	#define ps1Byte 		s8*	
 
 	#define s2Byte 		s16
-	#define ps2Byte 		s16*
+	#define ps2Byte 		s16*	
 
 	#define s4Byte 		s32
-	#define ps4Byte 		s32*
+	#define ps4Byte 		s32*	
 
 	#define s8Byte 		s64
-	#define ps8Byte 		s64*
-
+	#define ps8Byte 		s64*	
+	
 #endif
 	#ifdef CONFIG_USB_HCI
 		#define DEV_BUS_TYPE  	RT_USB_INTERFACE
@@ -210,35 +214,30 @@ typedef enum _RT_SPINLOCK_TYPE{
 		#define DEV_BUS_TYPE  	RT_PCI_INTERFACE
 	#elif defined(CONFIG_SDIO_HCI)
 		#define DEV_BUS_TYPE  	RT_SDIO_INTERFACE
-	#endif
+	#endif	
 
 	typedef struct timer_list		RT_TIMER, *PRT_TIMER;
 	typedef  void *				RT_TIMER_CALL_BACK;
 	#define	STA_INFO_T			struct sta_info
 	#define	PSTA_INFO_T		struct sta_info *
+		
 
 
-
-	#define TRUE 	_TRUE
+	#define TRUE 	_TRUE	
 	#define FALSE	_FALSE
+	
 
-	//
-	// TX report 2 format in Rx desc
-	//
-	#define GET_TX_RPT2_DESC_PKT_LEN_88E(__pRxStatusDesc)				LE_BITS_TO_4BYTE( __pRxStatusDesc, 0, 9)
-	#define GET_TX_RPT2_DESC_MACID_VALID_1_88E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc+16, 0, 32)
-	#define GET_TX_RPT2_DESC_MACID_VALID_2_88E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc+20, 0, 32)
+	#define SET_TX_DESC_ANTSEL_A_88E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 24, 1, __Value)
+	#define SET_TX_DESC_ANTSEL_B_88E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 25, 1, __Value)
+	#define SET_TX_DESC_ANTSEL_C_88E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 29, 1, __Value)
 
-	#define GET_TX_REPORT_TYPE1_RERTY_0(__pAddr)						LE_BITS_TO_4BYTE( __pAddr, 0, 16)
-	#define GET_TX_REPORT_TYPE1_RERTY_1(__pAddr)						LE_BITS_TO_1BYTE( __pAddr+2, 0, 8)
-	#define GET_TX_REPORT_TYPE1_RERTY_2(__pAddr)						LE_BITS_TO_1BYTE( __pAddr+3, 0, 8)
-	#define GET_TX_REPORT_TYPE1_RERTY_3(__pAddr)						LE_BITS_TO_1BYTE( __pAddr+4, 0, 8)
-	#define GET_TX_REPORT_TYPE1_RERTY_4(__pAddr)						LE_BITS_TO_1BYTE( __pAddr+4+1, 0, 8)
-	#define GET_TX_REPORT_TYPE1_DROP_0(__pAddr)						LE_BITS_TO_1BYTE( __pAddr+4+2, 0, 8)
-	#define GET_TX_REPORT_TYPE1_DROP_1(__pAddr)						LE_BITS_TO_1BYTE( __pAddr+4+3, 0, 8)
-
-	#define	USE_WORKITEM 0
+	//define useless flag to avoid compile warning
+	#define	USE_WORKITEM 			0
+	#define 	FOR_BRAZIL_PRETEST	0
+	#define	BT_30_SUPPORT			0
+	#define   FPGA_TWO_MAC_VERIFICATION	0
 #endif
 
 
 #endif // __ODM_TYPES_H__
+

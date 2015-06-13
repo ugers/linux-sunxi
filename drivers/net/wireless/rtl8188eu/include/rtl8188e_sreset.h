@@ -17,20 +17,39 @@
  *
  *
  ******************************************************************************/
-#ifndef __CMD_OSDEP_H_
-#define __CMD_OSDEP_H_
-
+#ifndef _RTL8188E_SRESET_H_
+#define _RTL8188E_SRESET_H_
 
 #include <drv_conf.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 
-extern sint _rtw_init_cmd_priv (struct	cmd_priv *pcmdpriv);
-extern sint _rtw_init_evt_priv(struct evt_priv *pevtpriv);
-extern void _rtw_free_evt_priv (struct	evt_priv *pevtpriv);
-extern void _rtw_free_cmd_priv (struct	cmd_priv *pcmdpriv);
-extern sint _rtw_enqueue_cmd(_queue *queue, struct cmd_obj *obj);
-extern struct	cmd_obj	*_rtw_dequeue_cmd(_queue *queue);
 
+#ifdef DBG_CONFIG_ERROR_DETECT
+#define	WIFI_STATUS_SUCCESS 		0
+#define	USB_VEN_REQ_CMD_FAIL 	BIT0
+#define	USB_READ_PORT_FAIL 		BIT1
+#define	USB_WRITE_PORT_FAIL		BIT2
+#define	WIFI_MAC_TXDMA_ERROR 	BIT3			
+#define   WIFI_TX_HANG				BIT4
+#define	WIFI_RX_HANG				BIT5
+#define 	WIFI_IF_NOT_EXIST			BIT6
+
+struct sreset_priv {
+	_mutex 	silentreset_mutex;
+	u8 	silent_reset_inprogress;
+	u8	Wifi_Error_Status;
+	unsigned long last_tx_time;
+	unsigned long last_tx_complete_time;
+};
+
+
+extern void rtl8188e_sreset_init_value(_adapter *padapter);
+extern void rtl8188e_sreset_reset_value(_adapter *padapter);
+extern void rtl8188e_silentreset_for_specific_platform(_adapter *padapter);
+extern void rtl8188e_sreset_xmit_status_check(_adapter *padapter);
+extern void rtl8188e_sreset_linked_status_check(_adapter *padapter);
+extern u8 rtl8188e_sreset_get_wifi_status(_adapter *padapter);
+#endif
 #endif
 

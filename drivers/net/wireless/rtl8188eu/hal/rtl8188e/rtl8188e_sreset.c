@@ -19,14 +19,13 @@
  ******************************************************************************/
 #define _RTL8188E_SRESET_C_
 
-#include <rtl8192c_sreset.h>
+#include <rtl8188e_sreset.h>
 #include <rtl8188e_hal.h>
-
 
 #ifdef DBG_CONFIG_ERROR_DETECT
 extern void rtw_cancel_all_timer(_adapter *padapter);
 
-void rtl8192c_sreset_init_value(_adapter *padapter)
+void rtl8188e_sreset_init_value(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -37,7 +36,7 @@ void rtl8192c_sreset_init_value(_adapter *padapter)
 	psrtpriv->last_tx_time =0;
 	psrtpriv->last_tx_complete_time =0;
 }
-void rtl8192c_sreset_reset_value(_adapter *padapter)
+void rtl8188e_sreset_reset_value(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -105,7 +104,7 @@ static void _restore_network_status(_adapter *padapter)
 	// reset related register of Beacon control
 
 	//set MSR to nolink
-	Set_MSR(padapter, _HW_STATE_NOLINK_);
+	Set_MSR(padapter, _HW_STATE_NOLINK_);		
 	// reject all data frame
 	rtw_write16(padapter, REG_RXFLTMAP2,0x00);
 	//reset TSF
@@ -152,7 +151,7 @@ static void _restore_network_status(_adapter *padapter)
 	rtw_write8(padapter,0x4dc,padapter->xmitpriv.nqos_ssn);
 }
 
-void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
+void rtl8188e_silentreset_for_specific_platform(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -171,7 +170,7 @@ void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
 	if (!netif_queue_stopped(padapter->pnetdev))
 		netif_stop_queue(padapter->pnetdev);
 
-	rtw_cancel_all_timer(padapter);
+	rtw_cancel_all_timer(padapter);	
 	tasklet_kill(&pxmitpriv->xmit_tasklet);
 
 	_enter_critical_mutex(&psrtpriv->silentreset_mutex, &irqL);
@@ -200,7 +199,7 @@ void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
 #endif
 }
 
-void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
+void rtl8188e_sreset_xmit_status_check(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -209,9 +208,10 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	unsigned int diff_time;
 	u32 txdma_status;
+	
 	if( (txdma_status=rtw_read32(padapter, REG_TXDMA_STATUS)) !=0x00){
 		DBG_871X("%s REG_TXDMA_STATUS:0x%08x\n", __FUNCTION__, txdma_status);
-		rtl8192c_silentreset_for_specific_platform(padapter);
+		rtl8188e_silentreset_for_specific_platform(padapter);
 	}
 
 	//total xmit irp = 4
@@ -231,15 +231,21 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 				if(diff_time > 4000){
 					//padapter->Wifi_Error_Status = WIFI_TX_HANG;
 					DBG_8192C("%s tx hang\n", __FUNCTION__);
-					rtl8192c_silentreset_for_specific_platform(padapter);
+					rtl8188e_silentreset_for_specific_platform(padapter);
 				}
 			}
 		}
 	}
 }
 
-void rtl8192c_sreset_linked_status_check(_adapter *padapter)
+void rtl8188e_sreset_linked_status_check(_adapter *padapter)
 {
+	u32 rx_dma_status = 0;
+	rx_dma_status = rtw_read32(padapter,REG_RXDMA_STATUS);
+	if(rx_dma_status!= 0x00){
+		DBG_8192C("%s REG_RXDMA_STATUS:0x%08x",__FUNCTION__,rx_dma_status);
+	}	
+#if 0
 	u32 regc50,regc58,reg824,reg800;
 	regc50 = rtw_read32(padapter,0xc50);
 	regc58 = rtw_read32(padapter,0xc58);
@@ -252,12 +258,13 @@ void rtl8192c_sreset_linked_status_check(_adapter *padapter)
 	{
 		DBG_8192C("%s regc50:0x%08x, regc58:0x%08x, reg824:0x%08x, reg800:0x%08x,\n", __FUNCTION__,
 			regc50, regc58, reg824, reg800);
-		rtl8192c_silentreset_for_specific_platform(padapter);
+		rtl8188e_silentreset_for_specific_platform(padapter);
 	}
+#endif
 }
 
 #ifdef DBG_CONFIG_ERROR_DETECT
-u8 rtl8192c_sreset_get_wifi_status(_adapter *padapter)
+u8 rtl8188e_sreset_get_wifi_status(_adapter *padapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
@@ -293,3 +300,4 @@ u8 rtl8192c_sreset_get_wifi_status(_adapter *padapter)
 #endif
 
 #endif
+

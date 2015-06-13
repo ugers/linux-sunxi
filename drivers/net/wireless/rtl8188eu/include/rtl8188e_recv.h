@@ -101,7 +101,7 @@ typedef struct rxreport_8188e
 	u32 pattern9match:1;
 	u32 patternamatch:1;
 	u32 patternbmatch:1;
-	u32 patterncmatch:1;
+	u32 patterncmatch:1;	
 	u32 rsvd1613:19;
 	*/
 	u32 rsvd16;
@@ -131,9 +131,15 @@ void rtl8188eu_recv_tasklet(void *priv);
 
 #endif
 
+#ifdef CONFIG_PCI_HCI
+s32 rtl8188ee_init_recv_priv(PADAPTER padapter);
+void rtl8188ee_free_recv_priv(PADAPTER padapter);
+#endif
+
 void rtl8188e_query_rx_phy_status(union recv_frame *prframe, struct phy_stat *pphy_stat);
 void rtl8188e_process_phy_info(PADAPTER padapter, void *prframe);
 void update_recvframe_phyinfo_88e(union recv_frame	*precvframe,struct phy_stat *pphy_status);
 void update_recvframe_attrib_88e(	union recv_frame *precvframe,	struct recv_stat *prxstat);
 
 #endif
+
