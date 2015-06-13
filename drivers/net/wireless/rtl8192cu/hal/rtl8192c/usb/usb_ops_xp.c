@@ -883,7 +883,7 @@ _func_enter_;
 	    if(pxmitframe !=NULL)
 	    {	       
 	    		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("\n usb_write_port_complete:pIrp->Cancel == _TRUE,(pxmitframe !=NULL\n"));
-			rtw_free_xmitframe_ex(pxmitpriv, pxmitframe);			
+			rtw_free_xmitframe(pxmitpriv, pxmitframe);			
 	    }
 		  	 
 	     return STATUS_MORE_PROCESSING_REQUIRED;
@@ -929,7 +929,7 @@ _func_enter_;
 #else	
 
 	//not to consider tx fragment
-	rtw_free_xmitframe_ex(pxmitpriv, pxmitframe);		
+	rtw_free_xmitframe(pxmitpriv, pxmitframe);		
 
 #endif	
 

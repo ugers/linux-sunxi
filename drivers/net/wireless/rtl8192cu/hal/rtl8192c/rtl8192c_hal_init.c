@@ -1302,8 +1302,8 @@ ReadEFuse_RTL8192C(
 	// 5. Calculate Efuse utilization.
 	//
 	efuse_usage = (u8)((efuse_utilized*100)/EFUSE_REAL_CONTENT_LEN);
-	Adapter->HalFunc.SetHwRegHandler(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_utilized);
-	//Adapter->HalFunc.SetHwRegHandler(Adapter, HW_VAR_EFUSE_USAGE, (pu1Byte)&efuse_usage);
+	rtw_hal_set_hwreg(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_utilized);
+	//rtw_hal_set_hwreg(Adapter, HW_VAR_EFUSE_USAGE, (pu1Byte)&efuse_usage);
 }
 
 static VOID
@@ -1464,8 +1464,8 @@ ReadEFuse_RTL8723(
 	// 5. Calculate Efuse utilization.
 	//
 	efuse_usage = (u8)((efuse_utilized*100)/EFUSE_REAL_CONTENT_LEN);
-	Adapter->HalFunc.SetHwRegHandler(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_utilized);
-	//Adapter->HalFunc.SetHwRegHandler(Adapter, HW_VAR_EFUSE_USAGE, (pu1Byte)&efuse_usage);
+	rtw_hal_set_hwreg(Adapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_utilized);
+	//rtw_hal_set_hwreg(Adapter, HW_VAR_EFUSE_USAGE, (pu1Byte)&efuse_usage);
 }
 
 static BOOLEAN
@@ -2245,7 +2245,7 @@ hal_EfuseGetCurrentSize_8723(IN	PADAPTER	pAdapter,
 	}
 	else
 	{
-		pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
+		rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
 	}
 	//RTPRINT(FEEPROM, EFUSE_PG, ("hal_EfuseGetCurrentSize_8723(), start_efuse_addr = %d\n", efuse_addr));
 	
@@ -2293,7 +2293,7 @@ hal_EfuseGetCurrentSize_8723(IN	PADAPTER	pAdapter,
 	}
 	else
 	{
-		pAdapter->HalFunc.SetHwRegHandler(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
+		rtw_hal_set_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
 		//RTPRINT(FEEPROM, EFUSE_PG, ("hal_EfuseGetCurrentSize_8723(), return %d\n", efuse_addr));
 	}
 	
@@ -2969,7 +2969,7 @@ hal_EfusePartialWriteCheck(
 		}
 		else
 		{
-			pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
+			rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
 			startAddr%=EFUSE_REAL_CONTENT_LEN;
 		}
 	}
@@ -3539,6 +3539,39 @@ void hal_reset_security_engine_8192c(_adapter * adapter)
 	rtw_write8(adapter, 0x522, 0x00);
 }
 
+s32 c2h_id_filter_ccx_8192c(u8 id)
+{
+	s32 ret = _FALSE;
+	if (id == C2H_CCX_TX_RPT)
+		ret = _TRUE;
+	
+	return ret;
+}
+
+static s32 c2h_handler_8192c(_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
+{
+	s32 ret = _SUCCESS;
+	u8 i = 0;
+
+	if (c2h_evt == NULL) {
+		DBG_8192C("%s c2h_evt is NULL\n",__FUNCTION__);
+		ret = _FAIL;
+		goto exit;
+	}
+
+	switch (c2h_evt->id) {
+	case C2H_CCX_TX_RPT:
+		handle_txrpt_ccx_8192c(padapter, c2h_evt->payload);
+		break;
+	default:
+		ret = _FAIL;
+		break;
+	}
+
+exit:
+	return ret;
+}
+
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	pHalFunc->free_hal_data = &rtl8192c_free_hal_data;
@@ -3555,8 +3588,8 @@ void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->Add_RateATid = &rtl8192c_Add_RateATid;
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
-	pHalFunc->SwAntDivBeforeLinkHandler = &SwAntDivBeforeLink8192C;
-	pHalFunc->SwAntDivCompareHandler = &SwAntDivCompare8192C;
+	pHalFunc->AntDivBeforeLinkHandler = &SwAntDivBeforeLink8192C;
+	pHalFunc->AntDivCompareHandler = &SwAntDivCompare8192C;
 #endif
 
 	pHalFunc->read_bbreg = &rtl8192c_PHY_QueryBBReg;
@@ -3576,10 +3609,11 @@ void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 #ifdef DBG_CONFIG_ERROR_DETECT
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_reset_value = &sreset_reset_value;	
-	pHalFunc->silentreset = &rtl8192c_silentreset_for_specific_platform;
+	pHalFunc->silentreset = &sreset_reset;
 	pHalFunc->sreset_xmit_status_check = &rtl8192c_sreset_xmit_status_check;
 	pHalFunc->sreset_linked_status_check  = &rtl8192c_sreset_linked_status_check;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
+	pHalFunc->sreset_inprogress= &sreset_inprogress;
 #endif
 
 #ifdef CONFIG_IOL
@@ -3587,5 +3621,8 @@ void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 #endif
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8192c;
 	pHalFunc->hal_reset_security_engine = hal_reset_security_engine_8192c;
+
+	pHalFunc->c2h_handler = c2h_handler_8192c;
+	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8192c;
 }
 

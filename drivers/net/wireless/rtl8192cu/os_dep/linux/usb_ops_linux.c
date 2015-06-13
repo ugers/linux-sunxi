@@ -27,7 +27,7 @@ static void _usbctrl_vendorreq_async_callback(struct urb *urb, struct pt_regs *r
 {
 	if (urb) {
 		if (urb->context) {
-			kfree(urb->context);
+			rtw_mfree(urb->context);
 		}
 		usb_free_urb(urb);
 	}
@@ -383,7 +383,7 @@ _func_enter_;
 		_rtw_up_sema(&(pxmitpriv->tx_retevt));
 	}
 */
-        //rtw_free_xmitframe_ex(pxmitpriv, pxmitframe);
+        //rtw_free_xmitframe(pxmitpriv, pxmitframe);
 	
 	if(padapter->bSurpriseRemoved || padapter->bDriverStopped ||padapter->bWritePortCancel)
 	{
@@ -443,9 +443,11 @@ _func_enter_;
 	#endif
 
 check_completion:
+	_enter_critical(&pxmitpriv->lock_sctx, &irqL);
 	rtw_sctx_done_err(&pxmitbuf->sctx,
 		purb->status ? RTW_SCTX_DONE_WRITE_PORT_ERR : RTW_SCTX_DONE_SUCCESS);
-	
+	_exit_critical(&pxmitpriv->lock_sctx, &irqL);
+
 	rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 
 	//if(rtw_txframes_pending(padapter))	
@@ -583,6 +585,14 @@ _func_enter_;
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_871X("usb_write_port, status=%d\n", status);
 		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port(): usb_submit_urb, status=%x\n", status));
+		
+		switch (status) {
+		case -ENODEV:
+			padapter->bDriverStopped=_TRUE;
+			break;
+		default:
+			break;
+		}
 		goto exit;
 	}
 

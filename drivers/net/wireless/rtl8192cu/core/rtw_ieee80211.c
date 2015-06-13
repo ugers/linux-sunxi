@@ -167,7 +167,58 @@ _func_enter_;
 _func_exit_;	
 }
 
+inline u8 *rtw_set_ie_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode,
+	u8 new_ch, u8 ch_switch_cnt)
+{
+	u8 ie_data[3];
 
+	ie_data[0] = ch_switch_mode;
+	ie_data[1] = new_ch;
+	ie_data[2] = ch_switch_cnt;
+	return rtw_set_ie(buf, WLAN_EID_CHANNEL_SWITCH,  3, ie_data, buf_len);
+}
+
+inline u8 secondary_ch_offset_to_hal_ch_offset(u8 ch_offset)
+{
+	if (ch_offset == SCN)
+		return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	else if(ch_offset == SCA)
+		return HAL_PRIME_CHNL_OFFSET_UPPER;
+	else if(ch_offset == SCB)
+		return HAL_PRIME_CHNL_OFFSET_LOWER;
+
+	return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+}
+
+inline u8 hal_ch_offset_to_secondary_ch_offset(u8 ch_offset)
+{
+	if (ch_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE)
+		return SCN;
+	else if(ch_offset == HAL_PRIME_CHNL_OFFSET_LOWER)
+		return SCB;
+	else if(ch_offset == HAL_PRIME_CHNL_OFFSET_UPPER)
+		return SCA;
+
+	return SCN;
+}
+
+inline u8 *rtw_set_ie_secondary_ch_offset(u8 *buf, u32 *buf_len, u8 secondary_ch_offset)
+{
+	return rtw_set_ie(buf, WLAN_EID_SECONDARY_CHANNEL_OFFSET,  1, &secondary_ch_offset, buf_len);
+}
+
+inline u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
+	u8 flags, u16 reason, u16 precedence)
+{
+	u8 ie_data[6];
+
+	ie_data[0] = ttl;
+	ie_data[1] = flags;
+	RTW_PUT_LE16((u8*)&ie_data[2], reason);
+	RTW_PUT_LE16((u8*)&ie_data[4], precedence);
+
+	return rtw_set_ie(buf, 0x118,  6, ie_data, buf_len);
+}
 
 /*----------------------------------------------------------------------------
 index: the information element id index, limit is the limit for search
@@ -1245,6 +1296,77 @@ void dump_wps_ie(u8 *ie, u32 ie_len) {
 }
 
 #ifdef CONFIG_P2P
+/**
+ * rtw_get_p2p_merged_len - Get merged ie length from muitiple p2p ies.
+ * @in_ie: Pointer of the first p2p ie
+ * @in_len: Total len of muiltiple p2p ies
+ * Returns: Length of merged p2p ie length
+ */
+u32 rtw_get_p2p_merged_ies_len(u8 *in_ie, u32 in_len)
+{
+	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8 OUI[4] = { 0x50, 0x6f, 0x9a, 0x09 };
+	int i=0;
+	int j=0, len=0;
+
+	while( i < in_len)
+	{
+		pIE = (PNDIS_802_11_VARIABLE_IEs)(in_ie+ i);
+
+		if( pIE->ElementID == _VENDOR_SPECIFIC_IE_ && _rtw_memcmp(pIE->data, OUI, 4) )
+		{
+			len += pIE->Length-4; // 4 is P2P OUI length, don't count it in this loop
+		}
+
+		i += (pIE->Length + 2);
+	}
+
+	return len + 4;	// Append P2P OUI length at last.
+}
+
+/**
+ * rtw_p2p_merge_ies - Merge muitiple p2p ies into one
+ * @in_ie: Pointer of the first p2p ie
+ * @in_len: Total len of muiltiple p2p ies
+ * @merge_ie: Pointer of merged ie
+ * Returns: Length of merged p2p ie
+ */
+int rtw_p2p_merge_ies(u8 *in_ie, u32 in_len, u8 *merge_ie)
+{
+	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8 len = 0;
+	u8 OUI[4] = { 0x50, 0x6f, 0x9a, 0x09 };
+	u8 ELOUI[6] = { 0xDD, 0x00, 0x50, 0x6f, 0x9a, 0x09 };	//EID;Len;OUI, Len would copy at the end of function
+	int i=0;
+
+	if( merge_ie != NULL)
+	{
+		//Set first P2P OUI
+		_rtw_memcpy(merge_ie, ELOUI, 6);
+		merge_ie += 6;
+
+		while( i < in_len)
+		{
+			pIE = (PNDIS_802_11_VARIABLE_IEs)(in_ie+ i);
+
+			// Take out the rest of P2P OUIs
+			if( pIE->ElementID == _VENDOR_SPECIFIC_IE_ && _rtw_memcmp(pIE->data, OUI, 4) )
+			{
+				_rtw_memcpy( merge_ie, pIE->data +4, pIE->Length -4);
+				len += pIE->Length-4;
+				merge_ie += pIE->Length-4;
+			}
+
+			i += (pIE->Length + 2);
+		}
+
+		return len + 4;	// 4 is for P2P OUI
+
+	}
+
+	return 0;
+}
+
 void dump_p2p_ie(u8 *ie, u32 ie_len) {
 	u8* pos = (u8*)ie;
 	u8 id;
@@ -1343,7 +1465,7 @@ u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_attr
 	if(len_attr)
 		*len_attr = 0;
 
-	if ( ( p2p_ie[0] != _VENDOR_SPECIFIC_IE_ ) ||
+	if ( !p2p_ie || ( p2p_ie[0] != _VENDOR_SPECIFIC_IE_ ) ||
 		( _rtw_memcmp( p2p_ie + 2, p2p_oui , 4 ) != _TRUE ) )
 	{
 		return attr_ptr;
@@ -1535,10 +1657,7 @@ int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen)
 			if ( wfd_ie != NULL )
 			{
 				_rtw_memcpy( wfd_ie, &in_ie[ cnt ], in_ie[ cnt + 1 ] + 2 );
-				if ( wfd_ielen != NULL )
-				{
-					*wfd_ielen = in_ie[ cnt + 1 ] + 2;
-				}
+			
 			}
 			else
 			{
@@ -1546,6 +1665,11 @@ int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen)
 				{
 					*wfd_ielen = 0;
 				}
+			}
+			
+			if ( wfd_ielen != NULL )
+			{
+				*wfd_ielen = in_ie[ cnt + 1 ] + 2;
 			}
 			
 			cnt += in_ie[ cnt + 1 ] + 2;
@@ -1642,7 +1766,7 @@ int ieee80211_get_hdrlen(u16 fc)
 
 	switch (WLAN_FC_GET_TYPE(fc)) {
 	case RTW_IEEE80211_FTYPE_DATA:
-		if (fc & RTW_IEEE80211_QOS_DATAGRP)
+		if (fc & RTW_IEEE80211_STYPE_QOS_DATA)
 			hdrlen += 2;
 		if ((fc & RTW_IEEE80211_FCTL_FROMDS) && (fc & RTW_IEEE80211_FCTL_TODS))
 			hdrlen += 6; /* Addr4 */
@@ -1729,5 +1853,63 @@ u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsign
 		}
 	}
 	return max_rate;
+}
+
+int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8* category, u8 *action)
+{
+	const u8 *frame_body = frame + sizeof(struct rtw_ieee80211_hdr_3addr);
+	u16 fc;
+	u8 c, a;
+
+	fc = le16_to_cpu(((struct rtw_ieee80211_hdr_3addr *)frame)->frame_ctl);
+
+	if ((fc & (RTW_IEEE80211_FCTL_FTYPE|RTW_IEEE80211_FCTL_STYPE))
+		!= (RTW_IEEE80211_FTYPE_MGMT|RTW_IEEE80211_STYPE_ACTION)
+	)
+	{
+		return _FALSE;
+	}
+
+	c = frame_body[0];
+
+	switch(c) {
+	case RTW_WLAN_CATEGORY_P2P: /* vendor-specific */
+		break;
+	default:
+		a = frame_body[1];
+	}
+
+	if (category)
+		*category = c;
+	if (action)
+		*action = a;
+
+	return _TRUE;
+}
+
+static const char *_action_public_str[] = {
+	"ACT_PUB_BSSCOEXIST",
+	"ACT_PUB_DSE_ENABLE",
+	"ACT_PUB_DSE_DEENABLE",
+	"ACT_PUB_DSE_REG_LOCATION",
+	"ACT_PUB_EXT_CHL_SWITCH",
+	"ACT_PUB_DSE_MSR_REQ",
+	"ACT_PUB_DSE_MSR_RPRT",
+	"ACT_PUB_MP",
+	"ACT_PUB_DSE_PWR_CONSTRAINT",
+	"ACT_PUB_VENDOR",
+	"ACT_PUB_GAS_INITIAL_REQ",
+	"ACT_PUB_GAS_INITIAL_RSP",
+	"ACT_PUB_GAS_COMEBACK_REQ",
+	"ACT_PUB_GAS_COMEBACK_RSP",
+	"ACT_PUB_TDLS_DISCOVERY_RSP",
+	"ACT_PUB_LOCATION_TRACK",
+	"ACT_PUB_RSVD",
+};
+
+const char *action_public_str(u8 action)
+{
+	action = (action >= ACT_PUBLIC_MAX) ? ACT_PUBLIC_MAX : action;
+	return _action_public_str[action];
 }
 

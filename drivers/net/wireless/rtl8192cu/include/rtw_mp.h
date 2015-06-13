@@ -192,7 +192,7 @@ struct mp_tx
 	u8 *pallocated_buf;
 	u8 *buf;
 	u32 buf_size, write_size;
-	_thread_hdl_	PktTxThread;
+	_thread_hdl_  PktTxThread;
 };
 
 //#if (MP_DRIVER == 1)

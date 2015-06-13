@@ -22,8 +22,15 @@
 #include <drv_types.h>
 #include <rtw_byteorder.h>
 
-#include <hal_init.h>
+#include <hal_intf.h>
 #include <hal_com.h>
+
+#ifdef CONFIG_RTL8192C
+#include <rtl8192c_hal.h>
+#endif
+#ifdef CONFIG_RTL8192D
+#include <rtl8192d_hal.h>
+#endif
 
 #define _HAL_COM_C_
 
@@ -292,10 +299,73 @@ void	HalSetBrateCfg(
 
 void hal_init_macaddr(_adapter *adapter)
 {
-	adapter->HalFunc.SetHwRegHandler(adapter, HW_VAR_MAC_ADDR, adapter->eeprompriv.mac_addr);
+	rtw_hal_set_hwreg(adapter, HW_VAR_MAC_ADDR, adapter->eeprompriv.mac_addr);
 #ifdef  CONFIG_CONCURRENT_MODE
 	if (adapter->pbuddy_adapter)
-		adapter->HalFunc.SetHwRegHandler(adapter->pbuddy_adapter, HW_VAR_MAC_ADDR, adapter->pbuddy_adapter->eeprompriv.mac_addr);
+		rtw_hal_set_hwreg(adapter->pbuddy_adapter, HW_VAR_MAC_ADDR, adapter->pbuddy_adapter->eeprompriv.mac_addr);
 #endif
+}
+
+/* 
+* C2H event format:
+* Field	 TRIGGER		CONTENT	   CMD_SEQ 	CMD_LEN		 CMD_ID
+* BITS	 [127:120]	[119:16]      [15:8]		  [7:4]	 	   [3:0]
+*/
+
+void c2h_evt_clear(_adapter *adapter)
+{
+	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
+}
+
+s32 c2h_evt_read(_adapter *adapter, u8 *buf)
+{
+	s32 ret = _FAIL;
+	struct c2h_evt_hdr *c2h_evt;
+	int i;
+	u8 trigger;
+
+	if (buf == NULL)
+		goto exit;
+
+	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
+
+	if (trigger == C2H_EVT_HOST_CLOSE) {
+		goto exit; /* Not ready */
+	} else if (trigger != C2H_EVT_FW_CLOSE) {
+		goto clear_evt; /* Not a valid value */
+	}
+
+	c2h_evt = (struct c2h_evt_hdr *)buf;
+
+	_rtw_memset(c2h_evt, 0, 16);
+
+	*buf = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL);
+	*(buf+1) = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);	
+
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): ",
+		&c2h_evt , sizeof(c2h_evt));
+
+	if (0) {
+		DBG_871X("%s id:%u, len:%u, seq:%u, trigger:0x%02x\n", __func__
+			, c2h_evt->id, c2h_evt->plen, c2h_evt->seq, trigger);
+	}
+
+	/* Read the content */
+	for (i = 0; i < c2h_evt->plen; i++)
+		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + sizeof(*c2h_evt) + i);
+
+	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): Command Content:\n",
+		c2h_evt->payload, c2h_evt->plen);
+
+	ret = _SUCCESS;
+
+clear_evt:
+	/* 
+	* Clear event to notify FW we have read the command.
+	* If this field isn't clear, the FW won't update the next command message.
+	*/
+	c2h_evt_clear(adapter);
+exit:
+	return ret;
 }
 

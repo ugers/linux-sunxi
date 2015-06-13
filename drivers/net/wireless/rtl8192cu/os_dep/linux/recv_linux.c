@@ -87,7 +87,7 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 	precvbuf->len = 0;
 
 	#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
-	precvbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)precvbuf->alloc_sz, GFP_ATOMIC, &precvbuf->dma_transfer_addr);
+	precvbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)precvbuf->alloc_sz, &precvbuf->dma_transfer_addr);
 	precvbuf->pbuf = precvbuf->pallocated_buf;
 	if(precvbuf->pallocated_buf == NULL)
 		return _FAIL;
@@ -126,7 +126,7 @@ int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf)
 
 
 	if(precvbuf->pskb)
-		dev_kfree_skb_any(precvbuf->pskb);
+		rtw_skb_free(precvbuf->pskb);
 
 
 	return ret;
@@ -215,7 +215,7 @@ void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
 	skb->tail = precv_frame->u.hdr.rx_tail;
 	skb->len = precv_frame->u.hdr.len;
 
-	//pskb_copy = skb_copy(skb, GFP_ATOMIC);
+	//pskb_copy = rtw_skb_copy(skb);
 //	if(skb == NULL) goto _exit;
 
 	skb->dev = pmgnt_netdev;
@@ -232,9 +232,9 @@ void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
        //skb_pull(skb, 24);
        _rtw_memset(skb->cb, 0, sizeof(skb->cb));
 
-	netif_rx(skb);
+	rtw_netif_rx(pmgnt_netdev, skb);
 
-	precv_frame->u.hdr.pkt = NULL; // set pointer to NULL before rtw_free_recvframe() if call netif_rx()
+	precv_frame->u.hdr.pkt = NULL; // set pointer to NULL before rtw_free_recvframe() if call rtw_netif_rx()
 #endif
 }
 
@@ -300,7 +300,7 @@ _func_enter_;
 			if(bmcast)
 			{
 				psta = rtw_get_bcmc_stainfo(padapter);
-				pskb2 = skb_clone(skb, GFP_ATOMIC);
+				pskb2 = rtw_skb_clone(skb);
 			} else {
 				psta = rtw_get_stainfo(pstapriv, pattrib->dst);
 			}
@@ -317,7 +317,7 @@ _func_enter_;
 				skb_set_queue_mapping(skb, rtw_recv_select_queue(skb));
 #endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 			
-				rtw_xmit_entry(skb, pnetdev);
+				_rtw_xmit_entry(skb, pnetdev);
 			
 				if(bmcast)
 					skb = pskb2;
@@ -379,7 +379,7 @@ _func_enter_;
 	skb->dev = padapter->pnetdev;
 	skb->protocol = eth_type_trans(skb, padapter->pnetdev);
 
-	netif_rx(skb);
+	rtw_netif_rx(padapter->pnetdev, skb);
 
 _recv_indicatepkt_end:
 
@@ -387,7 +387,7 @@ _recv_indicatepkt_end:
 
 	rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
-	RT_TRACE(_module_recv_osdep_c_,_drv_info_,("\n rtw_recv_indicatepkt :after netif_rx!!!!\n"));
+	RT_TRACE(_module_recv_osdep_c_,_drv_info_,("\n rtw_recv_indicatepkt :after rtw_netif_rx!!!!\n"));
 
 _func_exit_;
 
@@ -414,7 +414,7 @@ void rtw_os_read_port(_adapter *padapter, struct recv_buf *precvbuf)
 	precvbuf->ref_cnt--;
 
 	//free skb in recv_buf
-	dev_kfree_skb_any(precvbuf->pskb);
+	rtw_skb_free(precvbuf->pskb);
 
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = _FALSE;

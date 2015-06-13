@@ -196,7 +196,7 @@ rtl8192c_PHY_SetBBReg(
 	if(BitMask!= bMaskDWord){//if not "double word" write
 		OriginalValue = rtw_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
-		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
+		Data = ((OriginalValue & (~BitMask)) | ((Data << BitShift) & BitMask));
 	}
 
 	rtw_write32(Adapter, RegAddr, Data);
@@ -1727,6 +1727,9 @@ PHY_BBConfig8192C(
 		TmpU1B = rtw_read8(Adapter, REG_SYS_FUNC_EN);
 		rtw_write8(Adapter, REG_SYS_FUNC_EN, (TmpU1B|FEN_BB_GLB_RSTn|FEN_BBRSTB));
 		
+		//undo clock gated
+		rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)&(~BIT31));
+		
 		//4. 0x25[6] = 0
 		TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL+1);
 		rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, (TmpU1B&(~BIT6)));
@@ -1755,6 +1758,9 @@ PHY_BBConfig8192C(
 #else
 		rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_PPLL|FEN_PCIEA|FEN_DIO_PCIE|FEN_BB_GLB_RSTn|FEN_BBRSTB);
 #endif
+		
+		//undo clock gated
+		rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)&(~BIT31));
 
 		// 2009/10/21 by SD1 Jong. Modified by tynli. Not in Documented in V8.1. 
 #ifdef CONFIG_USB_HCI
@@ -2663,13 +2669,13 @@ PHY_ScanOperationBackup8192C(
 		{
 			case SCAN_OPT_BACKUP:
 				IoType = IO_CMD_PAUSE_DM_BY_SCAN;
-				Adapter->HalFunc.SetHwRegHandler(Adapter,HW_VAR_IO_CMD,  (pu1Byte)&IoType);
+				rtw_hal_set_hwreg(Adapter,HW_VAR_IO_CMD,  (pu1Byte)&IoType);
 
 				break;
 
 			case SCAN_OPT_RESTORE:
 				IoType = IO_CMD_RESUME_DM_BY_SCAN;
-				Adapter->HalFunc.SetHwRegHandler(Adapter,HW_VAR_IO_CMD,  (pu1Byte)&IoType);
+				rtw_hal_set_hwreg(Adapter,HW_VAR_IO_CMD,  (pu1Byte)&IoType);
 				break;
 
 			default:
@@ -2739,7 +2745,7 @@ _PHY_SetBWMode92C(
 	
 	regBwOpMode = rtw_read8(Adapter, REG_BWOPMODE);
 	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR+2);
-	//regBwOpMode = Adapter->HalFunc.GetHwRegHandler(Adapter,HW_VAR_BWMODE,(pu1Byte)&regBwOpMode);
+	//regBwOpMode = rtw_hal_get_hwreg(Adapter,HW_VAR_BWMODE,(pu1Byte)&regBwOpMode);
 	
 	switch(pHalData->CurrentChannelBW)
 	{
@@ -2934,6 +2940,11 @@ static void _PHY_SwChnl8192C(PADAPTER Adapter, u8 channel)
 	u8 eRFPath;
 	u32 param1, param2;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+
+	if ( Adapter->bNotifyChannelChange )
+	{
+		DBG_871X( "[%s] ch = %d\n", __FUNCTION__, channel );
+	}
 
 	//s1. pre common command - CmdID_SetTxPowerLevel
 	PHY_SetTxPowerLevel8192C(Adapter, channel);
@@ -3335,7 +3346,7 @@ PHY_SetMonitorMode8192C(
 
 		pHalData->bInMonitorMode = TRUE;
 		pAdapter->HalFunc.AllowAllDestAddrHandler(pAdapter, TRUE, TRUE);
-		pAdapter->HalFunc.SetHwRegHandler(pAdapter, HW_VAR_CHECK_BSSID, (pu1Byte)&bFilterOutNonAssociatedBSSID);
+		rtw_hal_set_hwreg(pAdapter, HW_VAR_CHECK_BSSID, (pu1Byte)&bFilterOutNonAssociatedBSSID);
 	}
 	else
 	{
@@ -3344,7 +3355,7 @@ PHY_SetMonitorMode8192C(
 
 		pAdapter->HalFunc.AllowAllDestAddrHandler(pAdapter, FALSE, TRUE);
 		pHalData->bInMonitorMode = FALSE;
-		pAdapter->HalFunc.SetHwRegHandler(pAdapter, HW_VAR_CHECK_BSSID, (pu1Byte)&bFilterOutNonAssociatedBSSID);
+		rtw_hal_set_hwreg(pAdapter, HW_VAR_CHECK_BSSID, (pu1Byte)&bFilterOutNonAssociatedBSSID);
 	}
 #endif	
 }

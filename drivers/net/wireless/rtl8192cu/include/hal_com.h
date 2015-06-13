@@ -139,5 +139,8 @@ u8	MRateToHwRate(u8 rate);
 
 void hal_init_macaddr(_adapter *adapter);
 
+void c2h_evt_clear(_adapter *adapter);
+s32 c2h_evt_read(_adapter *adapter, u8 *buf);
+
 #endif //__HAL_COMMON_H__
 

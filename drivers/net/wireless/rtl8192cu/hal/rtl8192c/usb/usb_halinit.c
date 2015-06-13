@@ -232,7 +232,11 @@ _ConfigChipOutEP(
 		pHalData->OutEpQueueSel |= TX_SELE_HQ;
 		pHalData->OutEpNumber++;
 	}
-	
+
+#ifdef CONFIG_USB_ONE_OUT_EP
+		return;
+#endif
+		
 	if((value8 >> USB_NORMAL_SIE_EP_SHIFT) & USB_NORMAL_SIE_EP_MASK){
 		pHalData->OutEpQueueSel |= TX_SELE_NQ;
 		pHalData->OutEpNumber++;
@@ -261,13 +265,14 @@ static BOOLEAN HalUsbSetQueuePipeMapping8192CUsb(
 
 	_ConfigChipOutEP(pAdapter, NumOutPipe);
 
+	#ifndef CONFIG_USB_ONE_OUT_EP
 	// Normal chip with one IN and one OUT doesn't have interrupt IN EP.
 	if(1 == pHalData->OutEpNumber){
 		if(1 != NumInPipe){
 			return result;
 		}
 	}
-
+	#endif
 	result = _MappingOutEP(pAdapter, NumOutPipe);
 	
 	return result;
@@ -308,8 +313,13 @@ void rtl8192cu_interface_configure(_adapter *padapter)
 	pHalData->UsbRxAggPageTimeout	= 0x4; //6, absolute time = 34ms/(2^6)
 #endif
 
-	HalUsbSetQueuePipeMapping8192CUsb(padapter,
-				pdvobjpriv->RtNumInPipes, pdvobjpriv->RtNumOutPipes);
+	HalUsbSetQueuePipeMapping8192CUsb(padapter, pdvobjpriv->RtNumInPipes,
+		#ifdef CONFIG_USB_ONE_OUT_EP
+		1
+		#else
+		pdvobjpriv->RtNumOutPipes
+		#endif
+		);
 
 }
 
@@ -760,8 +770,6 @@ _InitQueueReservedPage(
 	{ //for WMM 
 		//RT_ASSERT((outEPNum>=2), ("for WMM ,number of out-ep must more than or equal to 2!\n"));
 
-		numPubQ = (bWiFiConfig)?WMM_NORMAL_PAGE_NUM_PUBQ:NORMAL_PAGE_NUM_PUBQ;
-
 		if(pHalData->OutEpQueueSel & TX_SELE_HQ){
 			numHQ = (bWiFiConfig)?WMM_NORMAL_PAGE_NUM_HPQ:NORMAL_PAGE_NUM_HPQ;
 		}
@@ -775,6 +783,11 @@ _InitQueueReservedPage(
 		}
 		value8 = (u8)_NPQ(numNQ);
 		rtw_write8(Adapter, REG_RQPN_NPQ, value8);
+
+		if (bWiFiConfig)
+			numPubQ = WMM_NORMAL_TX_TOTAL_PAGE_NUMBER - numHQ - numLQ - numNQ;
+		else
+			numPubQ = TX_TOTAL_PAGE_NUMBER - numHQ - numLQ - numNQ;
 	}
 
 	// TX DMA
@@ -2356,6 +2369,12 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC31);
 	rtw_write16(Adapter, REG_BCN_CTRL, 0x1818);	// For 2 PORT TSF SYNC
 
 
+
+#ifdef CONFIG_XMIT_ACK
+	//ack for xmit mgmt frames.
+	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
+#endif //CONFIG_XMIT_ACK
+
 exit:
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
 
@@ -2490,7 +2509,8 @@ phy_SsPwrSwitch92CU(
 
 					// Set BB reset at first
 					rtw_write8(Adapter, REG_SYS_FUNC_EN, 0x17 );//0x16		
-
+					//undo clock gated
+					rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)&(~BIT31));
 					// Enable TX
 					rtw_write8(Adapter, REG_TXPAUSE, 0x0);
 				}
@@ -2567,7 +2587,8 @@ phy_SsPwrSwitch92CU(
 
 						// After switch APSD, we need to delay for stability
 						rtw_mdelay_os(10);
-
+						//before BB reset should do clock gated
+						rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
 						// Set BB reset at first
 						value8 = 0 ; 
 						value8 |=( FEN_USBD | FEN_USBA | FEN_BB_GLB_RSTn);
@@ -2742,7 +2763,9 @@ _ResetBB(
 	)
 {
 	u16	value16;
-
+	
+	//before BB reset should do clock gated
+	rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
 	//reset BB
 	value16 = rtw_read16(Adapter, REG_SYS_FUNC_EN);
 	value16 &= ~(FEN_BBRSTB | FEN_BB_GLB_RSTn);
@@ -2838,7 +2861,8 @@ e.	SYS_FUNC_EN 0x02[7:0] = 0x14		//reset BB state machine
 
 	value8 |= APSDOFF;
 	rtw_write8(Adapter, REG_APSD_CTRL, value8);//0x40
-	
+	//before BB reset should do clock gated
+	rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
 	value8 = 0 ; 
 	value8 |=( FEN_USBD | FEN_USBA | FEN_BB_GLB_RSTn);
 	rtw_write8(Adapter, REG_SYS_FUNC_EN,value8 );//0x16		
@@ -4786,9 +4810,9 @@ static void hw_var_set_mlme_sitesurvey(PADAPTER Adapter, u8 variable, u8* val)
 	}
 	else//sitesurvey done
 	{
-		if(check_fwstate(pmlmepriv, _FW_LINKED) 
+		if(check_fwstate(pmlmepriv, _FW_LINKED) || check_fwstate(pmlmepriv, WIFI_AP_STATE)
 #ifdef CONFIG_CONCURRENT_MODE
-			|| check_buddy_fwstate(Adapter, _FW_LINKED)
+			|| check_buddy_fwstate(Adapter, _FW_LINKED) || check_buddy_fwstate(Adapter, WIFI_AP_STATE)
 #endif
 			)
 		{
@@ -5425,18 +5449,20 @@ _func_enter_;
 			{
 				DIG_T	*pDigTable = &pdmpriv->DM_DigTable;					
 				u32 		rx_gain = ((u32 *)(val))[0];
-				
+
 				if(rx_gain == 0xff){//restore rx gain
 					pDigTable->CurIGValue = pDigTable->BackupIGValue;
 					PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f,pDigTable->CurIGValue );
 					PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f,pDigTable->CurIGValue);
 				}
 				else{
-					pDigTable->BackupIGValue = pDigTable->CurIGValue;					
+					pDigTable->BackupIGValue = pDigTable->CurIGValue;
 					PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f,rx_gain );
 					PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f,rx_gain);
 					pDigTable->CurIGValue = (u8)rx_gain;
 				}
+
+
 			}
 			break;
 		case HW_VAR_TRIGGER_GPIO_0:
@@ -5645,6 +5671,9 @@ _func_enter_;
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw
 			rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0); 
+			break;
+		case HW_VAR_USB_RXAGG_PAGE_TO:
+			rtw_write8(Adapter, REG_USB_DMA_AGG_TO, *((u8 *)val));
 			break;
 		default:
 			break;
@@ -6207,12 +6236,13 @@ _func_enter_;
 	//pHalFunc->Add_RateATid = &rtl8192c_Add_RateATid;
 
 //#ifdef CONFIG_SW_ANTENNA_DIVERSITY
-	//pHalFunc->SwAntDivBeforeLinkHandler = &SwAntDivBeforeLink8192C;
-	//pHalFunc->SwAntDivCompareHandler = &SwAntDivCompare8192C;
+	//pHalFunc->AntDivBeforeLinkHandler = &SwAntDivBeforeLink8192C;
+	//pHalFunc->AntDivCompareHandler = &SwAntDivCompare8192C;
 //#endif
 
 	pHalFunc->hal_xmit = &rtl8192cu_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8192cu_mgnt_xmit;
+	pHalFunc->hal_xmitframe_enqueue = &rtl8192cu_hal_xmitframe_enqueue;
 
 	//pHalFunc->read_bbreg = &rtl8192c_PHY_QueryBBReg;
 	//pHalFunc->write_bbreg = &rtl8192c_PHY_SetBBReg;

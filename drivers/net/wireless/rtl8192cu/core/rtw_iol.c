@@ -38,7 +38,7 @@ struct xmit_frame	*rtw_IOL_accquire_xmit_frame(ADAPTER *adapter)
 	if ((xmitbuf = rtw_alloc_xmitbuf(pxmitpriv)) == NULL)
 	{
 		DBG_871X("%s rtw_alloc_xmitbuf return null\n", __FUNCTION__);
-		rtw_free_xmitframe_ex(pxmitpriv, xmit_frame);
+		rtw_free_xmitframe(pxmitpriv, xmit_frame);
 		xmit_frame=NULL;
 		goto exit;
 	}
@@ -224,10 +224,7 @@ int rtw_IOL_append_END_cmd(struct xmit_frame *xmit_frame)
 
 int rtw_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms)
 {
-	if(adapter->HalFunc.IOL_exec_cmds_sync)
-		return adapter->HalFunc.IOL_exec_cmds_sync(adapter, xmit_frame, max_wating_ms);
-
-	return _FAIL;
+	return rtw_hal_iol_cmd(adapter, xmit_frame, max_wating_ms);
 }
 
 int rtw_IOL_exec_cmd_array_sync(PADAPTER adapter, u8 *IOL_cmds, u32 cmd_num, u32 max_wating_ms)

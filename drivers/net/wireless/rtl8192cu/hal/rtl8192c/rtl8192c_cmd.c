@@ -78,21 +78,16 @@ int rtl8192c_FillH2CCmd(_adapter* padapter, u8 ElementID, u32 CmdLen, u8* pCmdBu
 
 _func_enter_;	
 
-#ifdef CONFIG_CONCURRENT_MODE
-
-	if(!padapter)
-		return _SUCCESS;
-	
-	if(padapter->adapter_type > PRIMARY_ADAPTER)
-	{
-		padapter = padapter->pbuddy_adapter;
-	}
-	
+	padapter = GET_PRIMARY_ADAPTER(padapter);		
 	pHalData = GET_HAL_DATA(padapter);
 
-	_enter_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);
-	
-#endif
+	if(padapter->bFWReady == _FALSE)
+	{
+		DBG_8192C("FillH2CCmd(): return H2C cmd because fw is not ready\n");
+		return ret;
+	}
+
+	_enter_critical_mutex(&(adapter_to_dvobj(padapter)->h2c_fwcmd_mutex), NULL);
 
 	if(!pCmdBuffer){
 		goto exit;
@@ -148,9 +143,8 @@ _func_enter_;
 
 exit:
 
-#ifdef CONFIG_CONCURRENT_MODE
-	_exit_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);	
-#endif
+	_exit_critical_mutex(&(adapter_to_dvobj(padapter)->h2c_fwcmd_mutex), NULL);	
+
 _func_exit_;
 
 	return ret;

@@ -34,6 +34,7 @@
 #include <rtw_byteorder.h>
 
 #include <rtl8192c_hal.h>
+#include "../dm.h"
 #ifdef CONFIG_INTEL_PROXIM
 #include "../proxim/intel_proxim.h"	
 #endif
@@ -257,8 +258,19 @@ DM_Write_DIG(
 		//PHY_SetBBReg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0, pDigTable->CurIGValue);
 		//PHY_SetBBReg(pAdapter, rOFDM0_XBAGCCore1, bMaskByte0, pDigTable->CurIGValue);
 		//printk("%s DIG(0x%02x)\n",__FUNCTION__,pDigTable->CurIGValue);
-		PHY_SetBBReg(pAdapter, rOFDM0_XAAGCCore1, 0x7f, pDigTable->CurIGValue);
-		PHY_SetBBReg(pAdapter, rOFDM0_XBAGCCore1, 0x7f, pDigTable->CurIGValue);
+
+#if defined CONFIG_WIDI_DIG_3E && defined CONFIG_INTEL_WIDI
+		if( pAdapter->mlmepriv.widi_enable == _TRUE )
+		{
+			PHY_SetBBReg(pAdapter, rOFDM0_XAAGCCore1, 0x7f, 0x3e);
+			PHY_SetBBReg(pAdapter, rOFDM0_XBAGCCore1, 0x7f, 0x3e);
+		}
+		else
+#endif //defined CONFIG_WIDI_DIG_3E && defined CONFIG_INTEL_WIDI
+		{
+			PHY_SetBBReg(pAdapter, rOFDM0_XAAGCCore1, 0x7f, pDigTable->CurIGValue);
+			PHY_SetBBReg(pAdapter, rOFDM0_XBAGCCore1, 0x7f, pDigTable->CurIGValue);
+		}
 		pDigTable->PreIGValue = pDigTable->CurIGValue;
 	}
 }
@@ -307,7 +319,10 @@ VOID dm_CtrlInitGainByRssi( IN PADAPTER pAdapter)
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
-	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);	
+	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);
+#ifdef CONFIG_DM_ADAPTIVITY
+	u8 Adap_IGI_Upper = pdmpriv->IGI_target + 30 + (u8) pdmpriv->TH_L2H_ini -(u8) pdmpriv->TH_EDCCA_HL_diff;
+#endif
 
 	 //modify DIG upper bound
 	if((pDigTable->Rssi_val_min + 20) > DM_DIG_MAX )
@@ -424,6 +439,22 @@ VOID dm_CtrlInitGainByRssi( IN PADAPTER pAdapter)
 	if(pDigTable->CurIGValue < pDigTable->rx_gain_range_min)
 		pDigTable->CurIGValue = pDigTable->rx_gain_range_min;
 
+#ifdef CONFIG_DM_ADAPTIVITY
+	if(pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY)
+	{
+		if(pDigTable->CurIGValue > Adap_IGI_Upper)
+			pDigTable->CurIGValue = Adap_IGI_Upper;
+
+		if(pdmpriv->IGI_LowerBound != 0)
+		{
+			if(pDigTable->CurIGValue < pdmpriv->IGI_LowerBound)
+				pDigTable->CurIGValue = pdmpriv->IGI_LowerBound;
+		}
+		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": pdmpriv->IGI_LowerBound = %d\n",
+			FUNC_ADPT_ARG(pAdapter), pdmpriv->IGI_LowerBound);
+	}
+#endif /* CONFIG_DM_ADAPTIVITY */
+
 	//printk("%s => rx_gain_range_max(0x%02x) rx_gain_range_min(0x%02x)\n",__FUNCTION__,
 	//	pDigTable->rx_gain_range_max,pDigTable->rx_gain_range_min);
 	//printk("%s CurIGValue(0x%02x)  <====\n",__FUNCTION__,pDigTable->CurIGValue );		
@@ -439,6 +470,10 @@ static VOID dm_CtrlInitGainByRssi(IN	PADAPTER	pAdapter)
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
 	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);
+	u8 RSSI_tmp = dm_initial_gain_MinPWDB(pAdapter);
+#ifdef CONFIG_DM_ADAPTIVITY
+	u8 Adap_IGI_Upper = pdmpriv->IGI_target + 30 + (u8) pdmpriv->TH_L2H_ini -(u8) pdmpriv->TH_EDCCA_HL_diff;
+#endif
 
 	//modify DIG upper bound
 	if((pDigTable->Rssi_val_min + 20) > DM_DIG_MAX )
@@ -446,7 +481,6 @@ static VOID dm_CtrlInitGainByRssi(IN	PADAPTER	pAdapter)
 	else
 		pDigTable->rx_gain_range_max = pDigTable->Rssi_val_min + 20;
 	//printk("%s Rssi_val_min(0x%02x),rx_gain_range_max(0x%02x)\n",__FUNCTION__,pDigTable->Rssi_val_min,pDigTable->rx_gain_range_max);
-
 	//modify DIG lower bound, deal with abnorally large false alarm
 	if(FalseAlmCnt->Cnt_all > 10000)
 	{
@@ -546,12 +580,36 @@ static VOID dm_CtrlInitGainByRssi(IN	PADAPTER	pAdapter)
 	}
 #endif
 
+	if(RSSI_tmp <= DM_DIG_MIN)
+		pDigTable->rx_gain_range_min = DM_DIG_MIN;
+	else if(RSSI_tmp >= DM_DIG_MAX)
+		pDigTable->rx_gain_range_min = DM_DIG_MAX;
+	else
+		pDigTable->rx_gain_range_min = RSSI_tmp;
+
+
 	//Check initial gain by upper/lower bound
 	if(pDigTable->CurIGValue >pDigTable->rx_gain_range_max)
 		pDigTable->CurIGValue = pDigTable->rx_gain_range_max;
 
 	if(pDigTable->CurIGValue < pDigTable->rx_gain_range_min)
 		pDigTable->CurIGValue = pDigTable->rx_gain_range_min;
+
+#ifdef CONFIG_DM_ADAPTIVITY
+	if(pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY)
+	{
+		if(pDigTable->CurIGValue > Adap_IGI_Upper)
+			pDigTable->CurIGValue = Adap_IGI_Upper;
+
+		if(pdmpriv->IGI_LowerBound != 0)
+		{
+			if(pDigTable->CurIGValue < pdmpriv->IGI_LowerBound)
+				pDigTable->CurIGValue = pdmpriv->IGI_LowerBound;
+		}
+		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": pdmpriv->IGI_LowerBound = %d\n",
+			FUNC_ADPT_ARG(pAdapter), pdmpriv->IGI_LowerBound);
+	}
+#endif /* CONFIG_DM_ADAPTIVITY */
 
 	//printk("%s => rx_gain_range_max(0x%02x) rx_gain_range_min(0x%02x)\n",__FUNCTION__,
 	//	pDigTable->rx_gain_range_max,pDigTable->rx_gain_range_min);
@@ -652,12 +710,14 @@ dm_initial_gain_STA_beforelinked(
 	//CurrentIGI = pDM_DigTable->rx_gain_range_min;//pDM_DigTable->CurIGValue = pDM_DigTable->rx_gain_range_min
 	//ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG(): DIG BeforeLink\n"));
 	//2012.03.30 LukeLee: enable DIG before link but with very high thresholds
-      	if(pFalseAlmCnt->Cnt_all > 10000)
-		pDigTable->CurIGValue = pDigTable->CurIGValue + 2;//pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+2;
-	else if (pFalseAlmCnt->Cnt_all > 8000)
-		pDigTable->CurIGValue = pDigTable->CurIGValue + 1;//pDM_DigTable->CurIGValue = pDM_DigTable->PreIGValue+1;
+	//	Updated by Albert 2012/09/27
+	//	Copy the same rule from 8192du code.
+      	if( pFalseAlmCnt->Cnt_all > 2000 )
+		pDigTable->CurIGValue += 2;
+	else if ( ( pFalseAlmCnt->Cnt_all > 1000 ) && ( pFalseAlmCnt->Cnt_all <= 1000 ) )
+		pDigTable->CurIGValue += 1;
 	else if(pFalseAlmCnt->Cnt_all < 500)
-		 pDigTable->CurIGValue = pDigTable->CurIGValue - 1;//pDM_DigTable->CurIGValue =pDM_DigTable->PreIGValue-1; 
+		 pDigTable->CurIGValue -= 1;
 
 	//Check initial gain by upper/lower bound
 	if(pDigTable->CurIGValue >pDigTable->rx_gain_range_max)
@@ -693,13 +753,14 @@ dm_initial_gain_STA(
 			pDigTable->Rssi_val_min = dm_initial_gain_MinPWDB(pAdapter);
 			dm_CtrlInitGainByRssi(pAdapter);
 		}	
-#ifdef CONFIG_IOCTL_CFG80211
-		else if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE)
+#if 0
+		else if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE 
+				&& pAdapter->wdinfo.driver_interface == DRIVER_CFG80211)
 		{
-			pDigTable->CurIGValue = 0x30;
+			//pDigTable->CurIGValue = 0x30;
 			DM_Write_DIG(pAdapter);
 		}
-#endif		
+#endif
 		else{ // pDigTable->CurSTAConnectState == DIG_STA_DISCONNECT 
 		#ifdef CONFIG_BEFORE_LINKED_DIG
 			//printk("%s==> ##1 CurIGI(0x%02x),PreIGValue(0x%02x) \n",__FUNCTION__,pDigTable->CurIGValue,pDigTable->PreIGValue );
@@ -794,7 +855,15 @@ dm_CtrlInitGainByTwoPort(
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == _TRUE)
-		return;
+	{
+#ifdef CONFIG_IOCTL_CFG80211
+		if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE)
+		{
+		}
+		else
+#endif
+			return;
+	}
 
 	// Decide the current status and if modify initial gain or not
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == _TRUE)
@@ -862,7 +931,10 @@ static void dm_DIG(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
-	
+
+	//Read 0x0c50; Initial gain
+	pDigTable->PreIGValue = (u8)PHY_QueryBBReg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0);
+
 	//RTPRINT(FDM, DM_Monitor, ("dm_DIG() ==>\n"));
 	
 	if(pdmpriv->bDMInitialGainEnable == _FALSE)
@@ -3351,14 +3423,14 @@ dm_CheckStatistics(
 		return;
 
 	//2008.12.10 tynli Add for getting Current_Tx_Rate_Reg flexibly.
-	Adapter->HalFunc.GetHwRegHandler( Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate) );
+	rtw_hal_get_hwreg( Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate) );
 
 	// Calculate current Tx Rate(Successful transmited!!)
 
 	// Calculate current Rx Rate(Successful received!!)
 	
 	//for tx tx retry count
-	Adapter->HalFunc.GetHwRegHandler( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
+	rtw_hal_get_hwreg( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
 #endif	
 }
 
@@ -3366,10 +3438,14 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 {	
 	u8	tmp1byte;
 	u8	bPbcPressed = _FALSE;
+	int i=0;
 
 	if(!padapter->registrypriv.hw_wps_pbc)
 		return;
 
+	do
+	{
+		i++;
 #ifdef CONFIG_USB_HCI
 	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
 	tmp1byte |= (HAL_8192C_HW_GPIO_WPS_BIT);
@@ -3385,30 +3461,44 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 	tmp1byte =rtw_read8(padapter, GPIO_IN);
 	
 	if (tmp1byte == 0xff)
-		return ;
+	{
+		bPbcPressed = _FALSE;
+		break ;
+	}	
 
 	if (tmp1byte&HAL_8192C_HW_GPIO_WPS_BIT)
 	{
 		bPbcPressed = _TRUE;
+
+		if(i<=3)
+			rtw_msleep_os(50);
 	}
 #else
 	tmp1byte = rtw_read8(padapter, GPIO_IN);
 	//RT_TRACE(COMP_IO, DBG_TRACE, ("dm_CheckPbcGPIO - %x\n", tmp1byte));
 
 	if (tmp1byte == 0xff || padapter->init_adpt_in_progress)
-		return ;
+	{
+		bPbcPressed = _FALSE;
+		break ;
+	}
 
 	if((tmp1byte&HAL_8192C_HW_GPIO_WPS_BIT)==0)
 	{
 		bPbcPressed = _TRUE;
-	}
-#endif
 
+		if(i<=3)
+			rtw_msleep_os(50);
+	}
+#endif		
+
+	}while(i<=3 && bPbcPressed == _TRUE);
+	
 	if( _TRUE == bPbcPressed)
 	{
 		// Here we only set bPbcPressed to true
 		// After trigger PBC, the variable will be set to false		
-		DBG_8192C("CheckPbcGPIO - PBC is pressed\n");
+		DBG_8192C("CheckPbcGPIO - PBC is pressed, try_cnt=%d\n", i-1);
                 
 #ifdef RTK_DMP_PLATFORM
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,12))
@@ -3427,7 +3517,7 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 		rtw_signal_process(padapter->pid[0], SIGUSR1);
 #endif
 #endif
-	}
+	}	
 }
 
 #ifdef CONFIG_PCI_HCI
@@ -4689,6 +4779,12 @@ rtl8192c_InitHalDm(
 	{
 		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 	}
+
+#ifdef CONFIG_DM_ADAPTIVITY
+	pdmpriv->DMFlag |= DYNAMIC_FUNC_ADAPTIVITY;
+	dm_adaptivity_init(Adapter);
+#endif
+
 }
 
 #ifdef CONFIG_CONCURRENT_MODE
@@ -4772,6 +4868,7 @@ rtl8192c_HalDmWatchDog(
 	u8 hw_init_completed = _FALSE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
 #ifdef CONFIG_CONCURRENT_MODE
 	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
 #endif //CONFIG_CONCURRENT_MODE
@@ -4792,12 +4889,12 @@ rtl8192c_HalDmWatchDog(
 	#if defined(CONFIG_CONCURRENT_MODE)
 	if (Adapter->iface_type != IFACE_PORT0 && pbuddy_adapter) {
 		bFwCurrentInPSMode = pbuddy_adapter->pwrctrlpriv.bFwCurrentInPSMode;
-		Adapter->HalFunc.GetHwRegHandler(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+		rtw_hal_get_hwreg(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
 	} else
 	#endif
 	{
 		bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-		Adapter->HalFunc.GetHwRegHandler(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+		rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
 	}
 #endif
 
@@ -4845,6 +4942,7 @@ rtl8192c_HalDmWatchDog(
 		//
 		dm_FalseAlarmCounterStatistics(Adapter);
 		dm_DIG(Adapter);
+		dm_adaptivity(Adapter);
 
 		//
 		//Dynamic BB Power Saving Mechanism
@@ -4859,7 +4957,12 @@ rtl8192c_HalDmWatchDog(
 		//
 		// Tx Power Tracking.
 		//
-		rtl8192c_dm_CheckTXPowerTracking(Adapter);
+#if MP_DRIVER == 0
+#ifdef CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK
+		if(pmlmepriv->LinkDetectInfo.bBusyTraffic == _FALSE)
+#endif //CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK
+#endif
+			rtl8192c_dm_CheckTXPowerTracking(Adapter);
 
 		//
 		// Rate Adaptive by Rx Signal Strength mechanism.

@@ -35,7 +35,7 @@
 #define _drv_info_			7
 #define _drv_dump_			8
 #define	_drv_debug_		9
-
+#define _drv_always_ _drv_emerg_
 
 #define _module_rtl871x_xmit_c_		BIT(0)
 #define _module_xmit_osdep_c_		BIT(1)
@@ -103,7 +103,7 @@
 	#define	_MODULE_DEFINE_	_module_rtl871x_security_c_
 #elif defined _RTW_EEPROM_C_
 	#define	_MODULE_DEFINE_	_module_rtl871x_eeprom_c_
-#elif defined _HAL_INIT_C_
+#elif defined _HAL_INTF_C_
 	#define	_MODULE_DEFINE_	_module_hal_init_c_
 #elif defined _HCI_HAL_INIT_C_
 	#define	_MODULE_DEFINE_	_module_hci_hal_init_c_
@@ -308,6 +308,7 @@ extern u32 GlobalDebugLevel;
                         }\
                 }while(0)
 
+#define DBG_871X_LEVEL LOG_LEVEL
 
 #if     defined (_dbgdump)
         #undef DBG_871X
@@ -343,7 +344,13 @@ extern u32 GlobalDebugLevel;
 			  
 	int proc_set_log_level(struct file *file, const char *buffer,
 			unsigned long count, void *data);
-	
+
+#ifdef DBG_MEM_ALLOC
+	int proc_get_mstat(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+#endif /* DBG_MEM_ALLOC */
+
 	int proc_get_write_reg(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
@@ -453,6 +460,8 @@ extern u32 GlobalDebugLevel;
 	int proc_get_best_channel(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
+	int proc_set_best_channel(struct file *file, const char *buffer,
+		unsigned long count, void *data);
 #endif
 
 	int proc_get_rx_signal(char *page, char **start,
@@ -461,7 +470,14 @@ extern u32 GlobalDebugLevel;
 
 	int proc_set_rx_signal(struct file *file, const char *buffer,
 		unsigned long count, void *data);
-
+		
+	int proc_get_ht_enable(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+			  
+	int proc_set_ht_enable(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+			  
 	int proc_get_cbw40_enable(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
@@ -502,7 +518,19 @@ extern u32 GlobalDebugLevel;
 
 	int proc_set_rssi_disp(struct file *file, const char *buffer,
 		unsigned long count, void *data);
-	
+
+#if defined(DBG_CONFIG_ERROR_DETECT)
+int proc_get_sreset(char *page, char **start, off_t offset, int count, int *eof, void *data);
+int proc_set_sreset(struct file *file, const char *buffer, unsigned long count, void *data);
+#endif /* DBG_CONFIG_ERROR_DETECT */
+
+#ifdef CONFIG_DM_ADAPTIVITY
+int proc_get_dm_adaptivity(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+int proc_set_dm_adaptivity(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+#endif /* CONFIG_DM_ADAPTIVITY */
 
 #endif //CONFIG_PROC_DEBUG
 

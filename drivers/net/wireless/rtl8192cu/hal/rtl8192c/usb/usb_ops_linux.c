@@ -478,7 +478,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_stat *prxsta
 	_adapter *secondary_padapter = primary_padapter->pbuddy_adapter;
 	struct recv_priv *precvpriv = &primary_padapter->recvpriv;
 	_queue *pfree_recv_queue = &precvpriv->free_recv_queue;
-	u8	*pbuf = precvframe->u.hdr.rx_head;
+	u8	*pbuf = precvframe->u.hdr.rx_data;
 	
 	if(!secondary_padapter)
 		return ret;
@@ -627,20 +627,19 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_stat *prxsta
 					alloc_sz += 14;
 				}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
-				pkt_copy = dev_alloc_skb(alloc_sz);
-#else			
-				pkt_copy = netdev_alloc_skb(secondary_padapter->pnetdev, alloc_sz);
-#endif		
+				pkt_copy = rtw_skb_alloc(alloc_sz);
+
 				if(pkt_copy)
 				{
 					pkt_copy->dev = secondary_padapter->pnetdev;
 					precvframe_if2->u.hdr.pkt = pkt_copy;
+					precvframe_if2->u.hdr.rx_head = pkt_copy->data;
+					precvframe_if2->u.hdr.rx_end = pkt_copy->data + alloc_sz;
 					skb_reserve( pkt_copy, 8 - ((SIZE_PTR)( pkt_copy->data ) & 7 ));//force pkt_copy->data at 8-byte alignment address
 					skb_reserve( pkt_copy, shift_sz );//force ip_hdr at 8-byte alignment address according to shift_sz.
 					_rtw_memcpy(pkt_copy->data, pbuf, skb_len);
-					precvframe_if2->u.hdr.rx_head = precvframe_if2->u.hdr.rx_data = precvframe_if2->u.hdr.rx_tail = pkt_copy->data;
-					precvframe_if2->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+					precvframe_if2->u.hdr.rx_data = precvframe_if2->u.hdr.rx_tail = pkt_copy->data;
+					
 			
 					recvframe_put(precvframe_if2, skb_len);
 					//recvframe_pull(precvframe_if2, drvinfo_sz + RXDESC_SIZE);
@@ -767,25 +766,23 @@ static int recvbuf2recvframe(_adapter *padapter, struct recv_buf *precvbuf)
 			alloc_sz += 14;
 		}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
-		pkt_copy = dev_alloc_skb(alloc_sz);
-#else			
-		pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
-#endif		
+		pkt_copy = rtw_skb_alloc(alloc_sz);
+
 		if(pkt_copy)
 		{
 			pkt_copy->dev = padapter->pnetdev;
 			precvframe->u.hdr.pkt = pkt_copy;
+			precvframe->u.hdr.rx_head = pkt_copy->data;
+			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
 			skb_reserve( pkt_copy, 8 - ((SIZE_PTR)( pkt_copy->data ) & 7 ));//force pkt_copy->data at 8-byte alignment address
 			skb_reserve( pkt_copy, shift_sz );//force ip_hdr at 8-byte alignment address according to shift_sz.
 			_rtw_memcpy(pkt_copy->data, (pbuf + pattrib->shift_sz + pattrib->drvinfo_sz + RXDESC_SIZE), skb_len);
-			precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
-			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+			precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
 		}
 		else
 		{
 			DBG_8192C("recvbuf2recvframe:can not allocate memory for skb copy\n");
-			//precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
+			//precvframe->u.hdr.pkt = rtw_skb_clone(pskb);
 			//precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pbuf;
 			//precvframe->u.hdr.rx_end = pbuf + (pkt_offset>1612?pkt_offset:1612);
 
@@ -937,6 +934,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped=TRUE\n"));
 				break;
 			case -EPROTO:
+			case -EILSEQ:
+			case -ETIME:
+			case -ECOMM:
 			case -EOVERFLOW:
 				#ifdef DBG_CONFIG_ERROR_DETECT	
 				{	
@@ -1121,24 +1121,23 @@ static int recvbuf2recvframe(_adapter *padapter, _pkt *pskb)
 			alloc_sz += 14;
 		}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
-		pkt_copy = dev_alloc_skb(alloc_sz);
-#else			
-		pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
-#endif		
+		pkt_copy = rtw_skb_alloc(alloc_sz);
+
 		if(pkt_copy)
 		{
 			pkt_copy->dev = padapter->pnetdev;
 			precvframe->u.hdr.pkt = pkt_copy;
+			precvframe->u.hdr.rx_head = pkt_copy->data;
+			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
 			skb_reserve( pkt_copy, 8 - ((SIZE_PTR)( pkt_copy->data ) & 7 ));//force pkt_copy->data at 8-byte alignment address
 			skb_reserve( pkt_copy, shift_sz );//force ip_hdr at 8-byte alignment address according to shift_sz.
 			_rtw_memcpy(pkt_copy->data, (pbuf + pattrib->shift_sz + pattrib->drvinfo_sz + RXDESC_SIZE), skb_len);
-			precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
-			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+			precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pkt_copy->data;
+			
 		}
 		else
 		{
-			precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
+			precvframe->u.hdr.pkt = rtw_skb_clone(pskb);
 			if(pkt_copy)
 			{
 				precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail = pbuf;
@@ -1146,7 +1145,7 @@ static int recvbuf2recvframe(_adapter *padapter, _pkt *pskb)
 			}
 			else
 			{
-				DBG_8192C("recvbuf2recvframe: skb_clone fail\n");
+				DBG_8192C("recvbuf2recvframe: rtw_skb_clone fail\n");
 				rtw_free_recvframe(precvframe, pfree_recv_queue);
 				goto _exit_recvbuf2recvframe;
 			}
@@ -1223,7 +1222,7 @@ void rtl8192cu_recv_tasklet(void *priv)
 		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
 		{
 			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved \n");
-			dev_kfree_skb_any(pskb);
+			rtw_skb_free(pskb);
 			break;
 		}
 	
@@ -1238,7 +1237,7 @@ void rtl8192cu_recv_tasklet(void *priv)
 		skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);
 		
 #else
-		dev_kfree_skb_any(pskb);
+		rtw_skb_free(pskb);
 #endif
 				
 	}
@@ -1278,7 +1277,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	#else
 		if(precvbuf->pskb){
 			DBG_8192C("==> free skb(%p)\n",precvbuf->pskb);
-			dev_kfree_skb_any(precvbuf->pskb);				
+			rtw_skb_free(precvbuf->pskb);
 		}	
 	#endif
 		DBG_8192C("%s()-%d: RX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d) bReadPortCancel(%d)\n", 
@@ -1333,6 +1332,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped=TRUE\n"));
 				break;
 			case -EPROTO:
+			case -EILSEQ:
+			case -ETIME:
+			case -ECOMM:
 			case -EOVERFLOW:
 				#ifdef DBG_CONFIG_ERROR_DETECT	
 				{	
@@ -1401,12 +1403,8 @@ _func_enter_;
 		//re-assign for linux based on skb
 		if((precvbuf->reuse == _FALSE) || (precvbuf->pskb == NULL))
 		{
-			//precvbuf->pskb = alloc_skb(MAX_RECVBUF_SZ, GFP_ATOMIC);//don't use this after v2.6.25
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
-			precvbuf->pskb = dev_alloc_skb(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-#else			
-			precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-#endif			
+			precvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+
 			if(precvbuf->pskb == NULL)		
 			{
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("init_recvbuf(): alloc_skb fail!\n"));

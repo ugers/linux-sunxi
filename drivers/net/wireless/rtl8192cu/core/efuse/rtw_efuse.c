@@ -271,7 +271,7 @@ EFUSE_GetEfuseDefinition(
 	IN		PADAPTER	pAdapter,
 	IN		u8		efuseType,
 	IN		u8		type,
-	OUT		PVOID		*pOut,
+	OUT		void		*pOut,
 	IN		BOOLEAN		bPseudoTest
 	)
 {

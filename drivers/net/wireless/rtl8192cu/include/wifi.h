@@ -569,6 +569,9 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 #define	EID_BSSIntolerantChlReport	73
 #define _RIC_Descriptor_IE_			75
 
+#ifdef CONFIG_IEEE80211W
+#define _MME_IE_					76 //802.11w Management MIC element
+#endif //CONFIG_IEEE80211W
 #define _LINK_ID_IE_					101
 #define _CH_SWITCH_TIMING_		104
 #define _PTI_BUFFER_STATUS_		106
@@ -625,7 +628,10 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 #define _WEP_104_PRIVACY_		5
 #define _WEP_WPA_MIXED_PRIVACY_ 6	// WEP + WPA
 */
-				
+
+#ifdef CONFIG_IEEE80211W
+#define _MME_IE_LENGTH_  18
+#endif //CONFIG_IEEE80211W				
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM
 ------------------------------------------------------------------------------*/
@@ -1117,7 +1123,7 @@ struct ADDBA_request
 #define	P2P_TX_PRESCAN_TIMEOUT				100		//	100ms
 #define	P2P_INVITE_TIMEOUT					5000	//	5 seconds timeout for sending the invitation request
 #define	P2P_CONCURRENT_INVITE_TIMEOUT		3000	//	3 seconds timeout for sending the invitation request under concurrent mode
-
+#define	P2P_RESET_SCAN_CH						15000	//	15 seconds timeout to reset the scan channel ( based on channel plan )
 #define	P2P_MAX_INTENT						15
 
 #define	P2P_MAX_NOA_NUM						2
@@ -1160,10 +1166,13 @@ enum P2P_STATE {
 	P2P_STATE_PROVISIONING_ING = 13,				//	Doing the P2P WPS
 	P2P_STATE_PROVISIONING_DONE = 14,			//	Finish the P2P WPS
 	P2P_STATE_TX_INVITE_REQ = 15,					//	Transmit the P2P Invitation request
-	P2P_STATE_RX_INVITE_RESP = 16,				//	Receiving the P2P Invitation response
+	P2P_STATE_RX_INVITE_RESP_OK = 16,				//	Receiving the P2P Invitation response with sucess
 	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,	//	receiving the P2P Inviation request and dismatch with the profile.
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,			//	receiving the P2P Inviation request and this wifi is GO.
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,			//	receiving the P2P Inviation request to join an existing P2P Group.
+	P2P_STATE_RX_INVITE_RESP_FAIL = 20,			//	recveing the P2P Inviation response with failure
+	P2P_STATE_RX_INFOR_NOREADY = 21, 			// receiving p2p negoitation response with information is not available
+	P2P_STATE_TX_INFOR_NOREADY = 22, 			// sending p2p negoitation response with information is not available
 };
 
 enum P2P_WPSINFO {
@@ -1218,10 +1227,12 @@ enum P2P_PS_MODE
 #define	WFD_DEVINFO_SOURCE					0x0000
 #define	WFD_DEVINFO_PSINK					0x0001
 #define	WFD_DEVINFO_SSINK					0x0002
+#define	WFD_DEVINFO_DUAL 					0x0003
 
 #define	WFD_DEVINFO_SESSION_AVAIL			0x0010
 #define	WFD_DEVINFO_WSD						0x0040
 #define	WFD_DEVINFO_PC_TDLS					0x0080
+#define	WFD_DEVINFO_HDCP_SUPPORT			0x0100
 
 
 #ifdef  CONFIG_TX_MCAST2UNI

@@ -31,21 +31,9 @@
 
 #define PLATFORM_LINUX	1
 
-//#define CONFIG_IOCTL_CFG80211 1
-#ifdef CONFIG_PLATFORM_ARM_SUNxI
-	#ifndef CONFIG_IOCTL_CFG80211 
-		#define CONFIG_IOCTL_CFG80211 1
-	#endif
-#endif
-
-#ifdef CONFIG_PLATFORM_ARM_SUN6I
-	#ifndef CONFIG_IOCTL_CFG80211 
-		#define CONFIG_IOCTL_CFG80211 1
-	#endif
-#endif
-
+#define CONFIG_IOCTL_CFG80211 1
 #ifdef CONFIG_IOCTL_CFG80211
-	//#define RTW_USE_CFG80211_STA_EVENT /* Opne this for Android 4.1's wpa_supplicant */
+	//#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211 1
 	//#define CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
@@ -66,6 +54,12 @@
 #endif //CONFIG_WAKE_ON_WLAN
 
 #define CONFIG_R871X_TEST	1
+
+#define CONFIG_XMIT_ACK
+#ifdef CONFIG_XMIT_ACK
+	#define CONFIG_XMIT_ACK_POLLING
+	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
+#endif
 
 #define CONFIG_80211N_HT	1
 
@@ -116,7 +110,7 @@
 #ifdef CONFIG_P2P
 	//Added by Albert 20110812
 	//The CONFIG_WFD is for supporting the Wi-Fi display
-	#define CONFIG_WFD	1
+	#define CONFIG_WFD
 	
 	#ifndef CONFIG_WIFI_TEST
 		#define CONFIG_P2P_REMOVE_GROUP_INFO
@@ -124,7 +118,16 @@
 	//#define CONFIG_DBG_P2P
 
 	//#define CONFIG_P2P_PS
-	#define CONFIG_P2P_IPS
+	//#define CONFIG_P2P_IPS
+
+	#define P2P_OP_CHECK_SOCIAL_CH
+		// Added comment by Borg 2013/06/21
+		// Issue:  Nexus 4 is hard to do miracast.
+		// Root Cause: After group formation, 
+		//			Nexus 4 is possible to be not at OP channel of Invitation Resp/Nego Confirm but at social channel. 
+		// Patch: While scan OP channel, 
+		//		 not only scan OP channel of Invitation Resp/Nego Confirm, 
+		//		 but also scan social channel(1, 6, 11)
 #endif
 
 //	Added by Kurt 20110511
@@ -161,6 +164,7 @@
 #define CONFIG_NEW_SIGNAL_STAT_PROCESS
 //#define CONFIG_SIGNAL_DISPLAY_DBM //display RX signal with dbm
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable */
+#define CONFIG_DEAUTH_BEFORE_CONNECT
 
 #ifdef CONFIG_IOL
 	#define CONFIG_IOL_LLT
@@ -177,17 +181,24 @@
 #endif	// CONFIG_BR_EXT
 
 #define CONFIG_TX_MCAST2UNI	1	// Support IP multicast->unicast
+//#define CONFIG_DM_ADAPTIVITY
 //#define CONFIG_CHECK_AC_LIFETIME 1	// Check packet lifetime of 4 ACs.
 
 //#define CONFIG_CONCURRENT_MODE 1
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD 1			// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
+	//#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	//#define CONFIG_MULTI_VIR_IFACES //besides primary&secondary interfaces, extend to support more interfaces
 #endif	// CONFIG_CONCURRENT_MODE
+
+#define CONFIG_80211D
 
 /*
  * Interface  Related Config
  */
+ 
+//#define CONFIG_USB_ONE_OUT_EP
 //#define CONFIG_USB_INTERRUPT_IN_PIPE	1
 
 #ifndef CONFIG_MINIMAL_MEMORY_USAGE
@@ -204,16 +215,10 @@
  */
 //#define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
 //#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
-#ifdef CONFIG_PLATFORM_ARM_SUNxI
-	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
-		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
-	#endif
+#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
+#undef CONFIG_PREALLOC_RECV_SKB
 #endif
-#ifdef CONFIG_PLATFORM_ARM_SUN6I
-	#ifndef 	CONFIG_USE_USB_BUFFER_ALLOC_TX 
-		#define CONFIG_USE_USB_BUFFER_ALLOC_TX
-	#endif
-#endif
+
 /* 
  * USB VENDOR REQ BUFFER ALLOCATION METHOD
  * if not set we'll use function local variable (stack memory)
@@ -283,6 +288,7 @@
 #define CONFIG_USE_USB_BUFFER_ALLOC_RX 1
 #endif
 
+#define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
 
 /*
  * Debug  Related Config
@@ -321,3 +327,10 @@
 #define DBG_CONFIG_ERROR_DETECT
 //#define DBG_CONFIG_ERROR_RESET
 
+//TX use 1 urb
+//#define CONFIG_SINGLE_XMIT_BUF
+//RX use 1 urb
+//#define CONFIG_SINGLE_RECV_BUF
+
+//turn off power tracking when traffic is busy
+//#define CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK

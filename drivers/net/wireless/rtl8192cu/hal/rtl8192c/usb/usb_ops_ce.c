@@ -869,7 +869,7 @@ _func_enter_;
 
 
 	//not to consider tx fragment
-	rtw_free_xmitframe_ex(pxmitpriv, pxmitframe);		
+	rtw_free_xmitframe(pxmitpriv, pxmitframe);		
 
 
 #if 1

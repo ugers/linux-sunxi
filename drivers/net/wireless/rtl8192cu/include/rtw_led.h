@@ -162,6 +162,10 @@ typedef struct _LED_871x{
 	LED_STATE_871x		BlinkingLedState; // Next state for blinking, either RTW_LED_ON or RTW_LED_OFF are.
 
 	_timer				BlinkTimer; // Timer object for led blinking.
+	
+	u8					bLedLinkBlinkInProgress;
+	u8					bLedNoLinkBlinkInProgress;
+	u8 					bLedScanBlinkInProgress;
 } LED_871x, *PLED_871x;
 
 

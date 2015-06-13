@@ -65,11 +65,12 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 
 #include <rtw_cmd.h>
 #include <wlan_bssdef.h>
+#include <rtw_security.h>
 #include <rtw_xmit.h>
 #include <rtw_recv.h>
-#include <hal_init.h>
+#include <hal_intf.h>
+#include <hal_com.h>
 #include <rtw_qos.h>
-#include <rtw_security.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_io.h>
 #include <rtw_eeprom.h>
@@ -82,6 +83,7 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_mlme_ext.h>
 #include <rtw_p2p.h>
 #include <rtw_tdls.h>
+#include <rtw_ap.h>
 
 #ifdef CONFIG_DRVEXT_MODULE
 #include <drvext_api.h>
@@ -210,6 +212,9 @@ struct registry_priv
 
 	u8 notch_filter;
 
+#ifdef CONFIG_MULTI_VIR_IFACES
+	u8 ext_iface_num;//primary/secondary iface is excluded
+#endif
 };
 
 
@@ -226,15 +231,47 @@ struct registry_priv
 #define INTF_DATA SDIO_DATA
 #endif
 
+#define GET_PRIMARY_ADAPTER(padapter) (((_adapter *)padapter)->dvobj->if1)
+
+#define GET_IFACE_NUMS(padapter) (((_adapter *)padapter)->dvobj->iface_nums)
+#define GET_ADAPTER(padapter, iface_id) (((_adapter *)padapter)->dvobj->padapters[iface_id])
+
+enum _IFACE_ID {
+	IFACE_ID0, //maping to PRIMARY_ADAPTER
+	IFACE_ID1, //maping to SECONDARY_ADAPTER
+	IFACE_ID2, 
+	IFACE_ID3, 
+	IFACE_ID_MAX,
+};
+
 struct dvobj_priv
 {
-	_adapter *if1;
-	_adapter *if2;
+	_adapter *if1; //PRIMARY_ADAPTER
+	_adapter *if2; //SECONDARY_ADAPTER
+
+	s32 processing_dev_remove;
+
+	//for local/global synchronization
+	_mutex hw_init_mutex;
+	_mutex h2c_fwcmd_mutex;
+	_mutex setch_mutex;
+	_mutex setbw_mutex;
+
+	unsigned char	oper_channel; //saved channel info when call set_channel_bw
+	unsigned char	oper_bwmode;
+	unsigned char	oper_ch_offset;//PRIME_CHNL_OFFSET
+	u32 on_oper_ch_time;
+
+	//extend to support mulitu interface
+	//padapters[IFACE_ID0] == if1
+	//padapters[IFACE_ID1] == if2	
+	_adapter *padapters[IFACE_ID_MAX];
+	u8 iface_nums; // total number of ifaces used runtime
 
 	//For 92D, DMDP have 2 interface.
 	u8	InterfaceNumber;
 	u8	NumInterfaces;
-
+	u8	DualMacMode;
 	u8	irq_alloc;
 
 /*-------- below is for SDIO INTERFACE --------*/
@@ -371,24 +408,8 @@ enum _IFACE_TYPE {
 enum _ADAPTER_TYPE {
 	PRIMARY_ADAPTER,
 	SECONDARY_ADAPTER,
-	MAX_ADAPTER,
+	MAX_ADAPTER = 0xFF,	
 };
-
-#ifdef CONFIG_CONCURRENT_MODE
-struct co_data_priv{
-
-	//george@20120518
-	//current operating channel/bw/ch_offset
-	//save the correct ch/bw/ch_offset whatever the inputted values are
-	//when calling set_channel_bwmode() at concurrent mode 
-	//for debug check or reporting to layer app (such as wpa_supplicant for nl80211) 
-	u8 co_ch;
-	u8 co_bw;
-	u8 co_ch_offset;	
-	u8 rsvd;
-
-};
-#endif //CONFIG_CONCURRENT_MODE
 
 typedef enum _DRIVER_STATE{
 	DRIVER_NORMAL = 0,
@@ -444,8 +465,8 @@ struct _ADAPTER{
 	struct	recv_priv	recvpriv;
 	struct	sta_priv	stapriv;
 	struct	security_priv	securitypriv;
-	struct	registry_priv	registrypriv;
-	struct	wlan_acl_pool	acl_list;
+	_lock   security_key_mutex; // add for CONFIG_IEEE80211W, none 11w also can use
+	struct	registry_priv	registrypriv;	
 	struct	pwrctrl_priv	pwrctrlpriv;
 	struct 	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
@@ -467,7 +488,7 @@ struct _ADAPTER{
 	struct cfg80211_wifidirect_info	cfg80211_wdinfo;
 #endif //CONFIG_P2P
 #endif //CONFIG_IOCTL_CFG80211
-
+	u32	setband;
 #ifdef CONFIG_P2P
 	struct wifidirect_info	wdinfo;
 #endif //CONFIG_P2P
@@ -500,10 +521,10 @@ struct _ADAPTER{
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
 
-	_thread_hdl_	cmdThread;
-	_thread_hdl_	evtThread;
-	_thread_hdl_	xmitThread;
-	_thread_hdl_	recvThread;
+	_thread_hdl_ cmdThread;
+	_thread_hdl_ evtThread;
+	_thread_hdl_ xmitThread;
+	_thread_hdl_ recvThread;
 
 #ifndef PLATFORM_LINUX
 	NDIS_STATUS (*dvobj_init)(struct dvobj_priv	*dvobj);
@@ -560,25 +581,40 @@ struct _ADAPTER{
 	//	Added by Albert 2012/07/26
 	//	The driver will write the initial gain everytime when running in the DM_Write_DIG function.
 	u8 bForceWriteInitGain;
+	//	Added by Albert 2012/10/26
+	//	The driver will show up the desired channel number when this flag is 1.
+	u8 bNotifyChannelChange;
+#ifdef CONFIG_P2P
+	//	Added by Albert 2012/12/06
+	//	The driver will show the current P2P status when the upper application reads it.
+	u8 bShowGetP2PState;
+#endif
 #ifdef CONFIG_AUTOSUSPEND
 	u8	bDisableAutosuspend;
 #endif
 
+	//pbuddy_adapter is used only in  two inteface case, (iface_nums=2 in struct dvobj_priv)
+	//PRIMARY_ADAPTER's buddy is SECONDARY_ADAPTER
+	//SECONDARY_ADAPTER's buddy is PRIMARY_ADAPTER
+	//for iface_id > SECONDARY_ADAPTER(IFACE_ID1), refer to padapters[iface_id]  in struct dvobj_priv
+	//and their pbuddy_adapter is PRIMARY_ADAPTER.
+	//for PRIMARY_ADAPTER(IFACE_ID0) can directly refer to if1 in struct dvobj_priv
 	_adapter *pbuddy_adapter;
-
-	_mutex *hw_init_mutex;
+	
 #if defined(CONFIG_CONCURRENT_MODE) || defined(CONFIG_DUALMAC_CONCURRENT)
 	u8 isprimary; //is primary adapter or not
-	u8 adapter_type;
-	u8 iface_type; //interface port type
-
-	//for global synchronization
-	_mutex *ph2c_fwcmd_mutex;
-	_mutex *psetch_mutex;
-	_mutex *psetbw_mutex;
-
-	struct co_data_priv *pcodatapriv;//data buffer shared among interfaces	
+	//notes: 
+	// if isprimary is true, the adapter_type value is 0, iface_id is IFACE_ID0 for PRIMARY_ADAPTER
+	// if isprimary is false, the adapter_type value is 1, iface_id is IFACE_ID1 for SECONDARY_ADAPTER
+	// refer to iface_id if iface_nums>2 and isprimary is false and the adapter_type value is 0xff.
+	u8 adapter_type;//used only in  two inteface case(PRIMARY_ADAPTER and SECONDARY_ADAPTER) . 
+	u8 iface_type; //interface port type, it depends on HW port 
 #endif
+
+	//extend to support multi interface
+       //IFACE_ID0 is equals to PRIMARY_ADAPTER
+       //IFACE_ID1 is equals to SECONDARY_ADAPTER	
+	u8 iface_id;
 
 #ifdef CONFIG_DUALMAC_CONCURRENT
 	u8 DualMacConcurrent; // 1: DMSP 0:DMDP
