@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -20,23 +20,6 @@
 #ifndef _RTL8192C_RECV_H_
 #define _RTL8192C_RECV_H_
 
-#include <drv_conf.h>
-#include <osdep_service.h>
-#include <drv_types.h>
-
-
-#ifdef PLATFORM_OS_XP
-	#define NR_RECVBUFF (16)
-#elif defined(PLATFORM_OS_CE)
-	#define NR_RECVBUFF (4)
-#else
-
-	#define NR_RECVBUFF (4)
-
-	#define NR_PREALLOC_RECV_SKB (8)
-#endif
-
-
 #define RECV_BLK_SZ 512
 #define RECV_BLK_CNT 16
 #define RECV_BLK_TH RECV_BLK_CNT
@@ -50,7 +33,11 @@
 		//#define MAX_RECVBUF_SZ (32768) // 32k
 		//#define MAX_RECVBUF_SZ (16384) //16K
 		//#define MAX_RECVBUF_SZ (10240) //10K
-		#define MAX_RECVBUF_SZ (15360) // 15k < 16k
+		#ifdef CONFIG_PLATFORM_MSTAR
+			#define MAX_RECVBUF_SZ (8192) // 8K
+		#else
+		        #define MAX_RECVBUF_SZ (15360) // 15k < 16k
+		#endif
 		//#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k
 	#else
 		#define MAX_RECVBUF_SZ (4000) // about 4K
@@ -64,17 +51,13 @@
 	#define MAX_RECVBUF_SZ (4000) // about 4K
 //#endif
 
-#define RX_MPDU_QUEUE				0
-#define RX_CMD_QUEUE				1
-#define RX_MAX_QUEUE				2
+
+#elif defined(CONFIG_SDIO_HCI)
+
+#define MAX_RECVBUF_SZ (10240)
+
 #endif
 
-
-#define RECV_BULK_IN_ADDR		0x80
-#define RECV_INT_IN_ADDR		0x81
-
-#define PHY_RSSI_SLID_WIN_MAX				100
-#define PHY_LINKQUALITY_SLID_WIN_MAX		20
 
 
 struct phy_stat
@@ -125,3 +108,4 @@ void rtl8192c_translate_rx_signal_stuff(union recv_frame *precvframe, struct phy
 void rtl8192c_query_rx_desc_status(union recv_frame *precvframe, struct recv_stat *pdesc);
 
 #endif
+

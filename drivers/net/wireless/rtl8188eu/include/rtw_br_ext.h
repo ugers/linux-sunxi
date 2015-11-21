@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -23,11 +23,11 @@
 #if 1	// rtw_wifi_driver
 #define CL_IPV6_PASS    	1
 #define MACADDRLEN		6
-#define _DEBUG_ERR		printk
-#define _DEBUG_INFO		//printk
-#define DEBUG_WARN		printk
-#define DEBUG_INFO		//printk
-#define DEBUG_ERR		printk
+#define _DEBUG_ERR		DBG_8192C
+#define _DEBUG_INFO		//DBG_8192C
+#define DEBUG_WARN		DBG_8192C
+#define DEBUG_INFO		//DBG_8192C
+#define DEBUG_ERR		DBG_8192C
 //#define GET_MY_HWADDR		((GET_MIB(priv))->dot11OperationEntry.hwaddr)
 #define GET_MY_HWADDR(padapter)		((padapter)->eeprompriv.mac_addr)
 #endif	// rtw_wifi_driver
@@ -73,3 +73,4 @@ struct br_ext_info {
 void nat25_db_cleanup(_adapter *priv);
 
 #endif // _RTW_BR_EXT_H_
+

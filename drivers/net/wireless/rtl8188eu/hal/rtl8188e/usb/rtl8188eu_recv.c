@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -18,26 +18,8 @@
  *
  ******************************************************************************/
 #define _RTL8188EU_RECV_C_
-#include <drv_conf.h>
-#include <osdep_service.h>
+
 #include <drv_types.h>
-#include <recv_osdep.h>
-#include <mlme_osdep.h>
-#include <ip.h>
-#include <if_ether.h>
-#include <ethernet.h>
-
-#include <usb_ops.h>
-
-#if defined (PLATFORM_LINUX) && defined (PLATFORM_WINDOWS)
-
-#error "Shall be Linux or Windows, but not both!\n"
-
-#endif
-
-#include <wifi.h>
-#include <circ_buf.h>
-
 #include <rtl8188e_hal.h>
 
 
@@ -64,7 +46,7 @@ int	rtl8188eu_init_recv_priv(_adapter *padapter)
 	int	i, res = _SUCCESS;
 	struct recv_buf *precvbuf;
 
-#ifdef CONFIG_RECV_THREAD_MODE
+#ifdef CONFIG_RECV_THREAD_MODE	
 	_rtw_init_sema(&precvpriv->recv_sema, 0);//will be removed
 	_rtw_init_sema(&precvpriv->terminate_recvthread_sema, 0);//will be removed
 #endif
@@ -79,12 +61,16 @@ int	rtl8188eu_init_recv_priv(_adapter *padapter)
 #ifdef PLATFORM_LINUX
 	precvpriv->int_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if(precvpriv->int_in_urb == NULL){
+		res= _FAIL;
 		DBG_8192C("alloc_urb for interrupt in endpoint fail !!!!\n");
+		goto exit;
 	}
 #endif
-	precvpriv->int_in_buf = rtw_zmalloc(sizeof(INTERRUPT_MSG_FORMAT_EX));
+	precvpriv->int_in_buf = rtw_zmalloc(INTERRUPT_MSG_FORMAT_LEN);
 	if(precvpriv->int_in_buf == NULL){
+		res= _FAIL;
 		DBG_8192C("alloc_mem for interrupt in endpoint fail !!!!\n");
+		goto exit;
 	}
 #endif
 
@@ -149,12 +135,7 @@ int	rtl8188eu_init_recv_priv(_adapter *padapter)
 
 		for(i=0; i<NR_PREALLOC_RECV_SKB; i++)
 		{
-
-	#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
-			pskb = dev_alloc_skb(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-	#else
-			pskb = netdev_alloc_skb(padapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-	#endif
+			pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 
 			if(pskb)
 			{
@@ -204,10 +185,11 @@ void rtl8188eu_free_recv_priv (_adapter *padapter)
 	{
 		usb_free_urb(precvpriv->int_in_urb);
 	}
-#endif
+#endif//PLATFORM_LINUX
+
 	if(precvpriv->int_in_buf)
-		rtw_mfree(precvpriv->int_in_buf, sizeof(INTERRUPT_MSG_FORMAT_EX));
-#endif
+		rtw_mfree(precvpriv->int_in_buf, INTERRUPT_MSG_FORMAT_LEN);
+#endif//CONFIG_USB_INTERRUPT_IN_PIPE
 
 #ifdef PLATFORM_LINUX
 
@@ -215,7 +197,7 @@ void rtl8188eu_free_recv_priv (_adapter *padapter)
 		DBG_8192C(KERN_WARNING "rx_skb_queue not empty\n");
 	}
 
-	skb_queue_purge(&precvpriv->rx_skb_queue);
+	rtw_skb_queue_purge(&precvpriv->rx_skb_queue);
 
 #ifdef CONFIG_PREALLOC_RECV_SKB
 
@@ -223,10 +205,12 @@ void rtl8188eu_free_recv_priv (_adapter *padapter)
 		DBG_8192C(KERN_WARNING "free_recv_skb_queue not empty, %d\n", skb_queue_len(&precvpriv->free_recv_skb_queue));
 	}
 
-	skb_queue_purge(&precvpriv->free_recv_skb_queue);
+	rtw_skb_queue_purge(&precvpriv->free_recv_skb_queue);
 
 #endif
 
 #endif
 
 }
+
+

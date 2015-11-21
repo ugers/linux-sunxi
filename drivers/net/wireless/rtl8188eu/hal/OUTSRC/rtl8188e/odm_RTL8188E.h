@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -20,53 +20,34 @@
 #ifndef	__ODM_RTL8188E_H__
 #define __ODM_RTL8188E_H__
 
-#define	ANTDIV_ANT_A	0
-#define	ANTDIV_ANT_B	1
+
+#define	MAIN_ANT_CG_TRX	1
+#define	AUX_ANT_CG_TRX	0
+#define	MAIN_ANT_CGCS_RX	0
+#define	AUX_ANT_CGCS_RX	1
 
 VOID
 ODM_DIG_LowerBound_88E(
 	IN		PDM_ODM_T		pDM_Odm
 );
-#if ( !(DM_ODM_SUPPORT_TYPE == ODM_CE))
-VOID
-odm_FastAntTrainingInit(
-	IN		PDM_ODM_T		pDM_Odm
-);
-#endif
 
-VOID
-ODM_AntennaDiversityInit_88E(
-	IN		PDM_ODM_T		pDM_Odm
-);
 
-VOID
-ODM_AntennaDiversity_88E
-(
-	IN		PDM_ODM_T		pDM_Odm
-);
 
+
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
 VOID
-ODM_SetTxAntByAntDiv(
+ODM_SetTxAntByTxInfo_88E(
 	IN		PDM_ODM_T		pDM_Odm,
 	IN		pu1Byte			pDesc,
-	IN		u1Byte			macId
+	IN		u1Byte			macId	
 );
-#if ( !(DM_ODM_SUPPORT_TYPE == ODM_CE))
+#else// (DM_ODM_SUPPORT_TYPE == ODM_AP)
 VOID
-odm_FastAntTraining(
-	IN		PDM_ODM_T		pDM_Odm
-);
-
-VOID
-odm_FastAntTrainingCallback(
-	IN		PDM_ODM_T		pDM_Odm
-);
-
-VOID
-odm_FastAntTrainingWorkItemCallback(
-	IN		PDM_ODM_T		pDM_Odm
+ODM_SetTxAntByTxInfo_88E(
+	IN		PDM_ODM_T		pDM_Odm	
 );
 #endif
+
 VOID
 odm_PrimaryCCA_Init(
 	IN		PDM_ODM_T		pDM_Odm);
@@ -80,3 +61,4 @@ odm_DynamicPrimaryCCA(
 	IN		PDM_ODM_T		pDM_Odm);
 
 #endif
+

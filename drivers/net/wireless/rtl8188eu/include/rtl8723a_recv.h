@@ -23,7 +23,10 @@
 #include <rtl8192c_recv.h>
 
 
-#ifdef CONFIG_SDIO_HCI
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+#ifdef CONFIG_DIRECT_RECV
+void rtl8723as_recv(PADAPTER padapter, struct recv_buf *precvbuf);
+#endif
 s32 rtl8723as_init_recv_priv(PADAPTER padapter);
 void rtl8723as_free_recv_priv(PADAPTER padapter);
 #endif
@@ -35,3 +38,4 @@ void update_recvframe_attrib(union recv_frame *precvframe, struct recv_stat *prx
 void update_recvframe_phyinfo(union recv_frame *precvframe, struct phy_stat *pphy_info);
 #endif
 #endif
+

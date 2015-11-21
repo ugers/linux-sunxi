@@ -19,20 +19,65 @@
 ******************************************************************************/
 
 #if (RTL8188E_SUPPORT == 1)
-#ifndef __INC_FW_8188E_HW_IMG_H
-#define __INC_FW_8188E_HW_IMG_H
-
-#include "../odm_precomp.h"
+#ifndef __INC_MP_FW_HW_IMG_8188E_H
+#define __INC_MP_FW_HW_IMG_8188E_H
 
 
 /******************************************************************************
-*                           RTL8188EFW_A_CUT_T.TXT
+*                           FW_AP.TXT
 ******************************************************************************/
 
 void
-ODM_ReadAndConfig_RTL8188EFW_A_CUT_T_8188E(
-	IN   PDM_ODM_T  pDM_Odm
+ODM_ReadFirmware_MP_8188E_FW_AP(
+     IN   PDM_ODM_T    pDM_Odm,
+     OUT  u1Byte       *pFirmware,
+     OUT  u4Byte       *pFirmwareSize
+);
+
+/******************************************************************************
+*                           FW_NIC_S.TXT
+******************************************************************************/
+
+void
+ODM_ReadFirmware_MP_8188E_FW_NIC_S(
+     IN   PDM_ODM_T    pDM_Odm,
+     OUT  u1Byte       *pFirmware,
+     OUT  u4Byte       *pFirmwareSize
+);
+
+/******************************************************************************
+*                           FW_NIC_T.TXT
+******************************************************************************/
+
+void
+ODM_ReadFirmware_MP_8188E_FW_NIC_T(
+     IN   PDM_ODM_T    pDM_Odm,
+     OUT  u1Byte       *pFirmware,
+     OUT  u4Byte       *pFirmwareSize
+);
+
+/******************************************************************************
+*                           FW_WoWLAN_S.TXT
+******************************************************************************/
+
+void
+ODM_ReadFirmware_MP_8188E_FW_WoWLAN_S(
+     IN   PDM_ODM_T    pDM_Odm,
+     OUT  u1Byte       *pFirmware,
+     OUT  u4Byte       *pFirmwareSize
+);
+
+/******************************************************************************
+*                           FW_WoWLAN_T.TXT
+******************************************************************************/
+
+void
+ODM_ReadFirmware_MP_8188E_FW_WoWLAN_T(
+     IN   PDM_ODM_T    pDM_Odm,
+     OUT  u1Byte       *pFirmware,
+     OUT  u4Byte       *pFirmwareSize
 );
 
 #endif
 #endif // end of HWIMG_SUPPORT
+
