@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #ifndef _RTL8192C_RECV_H_
 #define _RTL8192C_RECV_H_
 
@@ -62,11 +61,11 @@
 #endif
 
 #elif defined(CONFIG_PCI_HCI)
-#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-	#define MAX_RECVBUF_SZ (9100)
-#else
+//#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+//	#define MAX_RECVBUF_SZ (9100)
+//#else
 	#define MAX_RECVBUF_SZ (4000) // about 4K
-#endif
+//#endif
 
 #define RX_MPDU_QUEUE				0
 #define RX_CMD_QUEUE				1
@@ -167,17 +166,15 @@ typedef struct _INTERRUPT_MSG_FORMAT_EX{
 void rtl8192cu_init_recvbuf(_adapter *padapter, struct recv_buf *precvbuf);
 int	rtl8192cu_init_recv_priv(_adapter * padapter);
 void rtl8192cu_free_recv_priv(_adapter * padapter);
-void rtl8192cu_update_recvframe_attrib_from_recvstat(union recv_frame *precvframe, struct recv_stat *prxstat);
 #endif
 
 #ifdef CONFIG_PCI_HCI
 int	rtl8192ce_init_recv_priv(_adapter * padapter);
 void rtl8192ce_free_recv_priv(_adapter * padapter);
-void rtl8192ce_update_recvframe_attrib_from_recvstat(union recv_frame *precvframe, struct recv_stat *prxstat);
 #endif
 
-void rtl8192c_query_rx_phy_status(union recv_frame *prframe, struct phy_stat *pphy_stat);
-void rtl8192c_process_phy_info(_adapter *padapter, void *prframe);
+void rtl8192c_translate_rx_signal_stuff(union recv_frame *precvframe, struct phy_stat *pphy_info);
+void rtl8192c_query_rx_desc_status(union recv_frame *precvframe, struct recv_stat *pdesc);
 
 #endif
 

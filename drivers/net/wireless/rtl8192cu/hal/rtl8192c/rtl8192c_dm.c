@@ -15,8 +15,8 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- * 
-******************************************************************************/
+ *
+ ******************************************************************************/
 //============================================================
 // Description:
 //
@@ -34,7 +34,9 @@
 #include <rtw_byteorder.h>
 
 #include <rtl8192c_hal.h>
-
+#ifdef CONFIG_INTEL_PROXIM
+#include "../proxim/intel_proxim.h"	
+#endif
 //============================================================
 // Global var
 //============================================================
@@ -95,6 +97,7 @@ static void	dm_DIGInit(
 	
 	pDigTable->rx_gain_range_max = DM_DIG_MAX;
 	pDigTable->rx_gain_range_min = DM_DIG_MIN;
+	pDigTable->rx_gain_range_min_nolink = 0;
 
 	pDigTable->BackoffVal = DM_DIG_BACKOFF_DEFAULT;
 	pDigTable->BackoffVal_range_max = DM_DIG_BACKOFF_MAX;
@@ -123,8 +126,12 @@ static u8 dm_initial_gain_MinPWDB(
 		(pDigTable->CurSTAConnectState == DIG_STA_CONNECT) )
 	{
 		if(pdmpriv->EntryMinUndecoratedSmoothedPWDB != 0)
+#ifdef CONFIG_CONCURRENT_MODE
+			Rssi_val_min  =  (pdmpriv->UndecoratedSmoothedPWDB+pdmpriv->EntryMinUndecoratedSmoothedPWDB)/2;
+#else
 			Rssi_val_min  =  (pdmpriv->EntryMinUndecoratedSmoothedPWDB > pdmpriv->UndecoratedSmoothedPWDB)?
 					pdmpriv->UndecoratedSmoothedPWDB:pdmpriv->EntryMinUndecoratedSmoothedPWDB;		
+#endif //CONFIG_CONCURRENT_MODE
 		else
 			Rssi_val_min = pdmpriv->UndecoratedSmoothedPWDB;
 	}
@@ -151,6 +158,9 @@ dm_FalseAlarmCounterStatistics(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);
+#ifdef CONFIG_CONCURRENT_MODE
+	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
+#endif //CONFIG_CONCURRENT_MODE
 	
 	ret_value = PHY_QueryBBReg(Adapter, rOFDM_PHYCounter1, bMaskDWord);
        FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);	
@@ -183,7 +193,13 @@ dm_FalseAlarmCounterStatistics(
 						FalseAlmCnt->Cnt_Crc8_fail +
 						FalseAlmCnt->Cnt_Mcs_fail +
 						FalseAlmCnt->Cnt_Cck_fail);	
+
 	Adapter->recvpriv.FalseAlmCnt_all = FalseAlmCnt->Cnt_all;
+#ifdef CONFIG_CONCURRENT_MODE
+	if(pbuddy_adapter)
+		pbuddy_adapter->recvpriv.FalseAlmCnt_all = FalseAlmCnt->Cnt_all;
+#endif //CONFIG_CONCURRENT_MODE
+
 	//reset false alarm counter registers
 	PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0x08000000, 1);
 	PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0x08000000, 0);
@@ -210,6 +226,21 @@ DM_Write_DIG(
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
 	
+#ifdef CONFIG_CONCURRENT_MODE
+	if(rtw_buddy_adapter_up(pAdapter))
+	{
+		PADAPTER pbuddy_adapter = pAdapter->pbuddy_adapter;
+		PHAL_DATA_TYPE	pbuddy_HalData = GET_HAL_DATA(pbuddy_adapter);
+		struct dm_priv *pbuddy_dmpriv = &pbuddy_HalData->dmpriv;
+		DIG_T	*pbuddy_DigTable = &pbuddy_dmpriv->DM_DigTable;
+
+		//sync IGValue
+		pbuddy_DigTable->PreIGValue = pDigTable->PreIGValue;
+		pbuddy_DigTable->CurIGValue = pDigTable->CurIGValue;
+	}
+#endif //CONFIG_CONCURRENT_MODE	
+
+
 	//RT_TRACE(	COMP_DIG, DBG_LOUD, ("CurIGValue = 0x%lx, PreIGValue = 0x%lx, BackoffVal = %d\n", 
 	//			DM_DigTable.CurIGValue, DM_DigTable.PreIGValue, DM_DigTable.BackoffVal));
 
@@ -220,7 +251,7 @@ DM_Write_DIG(
 		return;
 	}
 
-	if(pDigTable->PreIGValue != pDigTable->CurIGValue)
+	if( (pDigTable->PreIGValue != pDigTable->CurIGValue) || ( pAdapter->bForceWriteInitGain ) )
 	{
 		// Set initial gain.
 		//PHY_SetBBReg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0, pDigTable->CurIGValue);
@@ -256,7 +287,7 @@ dm_CtrlInitGainByFA(
 	
 	if(value_IGI > DM_DIG_FA_UPPER)			
 		value_IGI = DM_DIG_FA_UPPER;
-	if(value_IGI < DM_DIG_FA_LOWER)		
+	if(value_IGI < DM_DIG_FA_LOWER)
 		value_IGI = DM_DIG_FA_LOWER;
 
 	if(FalseAlmCnt->Cnt_all > 10000)
@@ -541,6 +572,20 @@ dm_initial_gain_Multi_STA(
 	DIG_T			*pDigTable = &pdmpriv->DM_DigTable;
 	int				rssi_strength =  pdmpriv->EntryMinUndecoratedSmoothedPWDB;	
 	BOOLEAN			bMulti_STA = _FALSE;
+	
+#ifdef CONFIG_CONCURRENT_MODE
+	//AP Mode
+	if(check_buddy_fwstate(pAdapter, WIFI_AP_STATE) == _TRUE && (rssi_strength !=0))
+	{
+		bMulti_STA = _TRUE;
+	}	
+	else if(pDigTable->CurMultiSTAConnectState == DIG_MultiSTA_CONNECT && rssi_strength==0) //STA+STA MODE
+	{
+		bMulti_STA = _TRUE;
+		rssi_strength = pdmpriv->UndecoratedSmoothedPWDB;		
+	}
+#endif //CONFIG_CONCURRENT_MODE
+
 
 	//ADHOC and AP Mode
 	if(check_fwstate(pmlmepriv, WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == _TRUE)
@@ -647,7 +692,7 @@ dm_initial_gain_STA(
 		{
 			pDigTable->Rssi_val_min = dm_initial_gain_MinPWDB(pAdapter);
 			dm_CtrlInitGainByRssi(pAdapter);
-		}
+		}	
 #ifdef CONFIG_IOCTL_CFG80211
 		else if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE)
 		{
@@ -660,7 +705,7 @@ dm_initial_gain_STA(
 			//printk("%s==> ##1 CurIGI(0x%02x),PreIGValue(0x%02x) \n",__FUNCTION__,pDigTable->CurIGValue,pDigTable->PreIGValue );
 			dm_initial_gain_STA_beforelinked(pAdapter);
 			DM_Write_DIG(pAdapter);
-		#endif
+		#endif //CONFIG_BEFORE_LINKED_DIG
 		}
 	}
 	else	
@@ -671,11 +716,11 @@ dm_initial_gain_STA(
 		pDigTable->BackoffVal = DM_DIG_BACKOFF_DEFAULT;
 		pDigTable->CurIGValue = 0x20;
 		pDigTable->PreIGValue = 0;	
-
 		#ifdef CONFIG_BEFORE_LINKED_DIG			
 		//printk("%s==> ##2 CurIGI(0x%02x),PreIGValue(0x%02x) \n",__FUNCTION__,pDigTable->CurIGValue,pDigTable->PreIGValue );	
 		dm_initial_gain_STA_beforelinked(pAdapter);			 
- 		#endif
+ 		#endif //CONFIG_BEFORE_LINKED_DIG
+		
 
 		DM_Write_DIG(pAdapter);
 	}
@@ -779,9 +824,31 @@ dm_CtrlInitGainByTwoPort(
 			pDigTable->CurMultiSTAConnectState = DIG_MultiSTA_CONNECT;					
 	}
 
+#ifdef CONFIG_CONCURRENT_MODE
+	if(check_buddy_fwstate(pAdapter, WIFI_AP_STATE) == _TRUE)
+	{
+		PADAPTER pbuddy_adapter = pAdapter->pbuddy_adapter;
+		
+		if(pbuddy_adapter->stapriv.asoc_sta_count > 2)
+		{
+			pDigTable->CurSTAConnectState = DIG_STA_CONNECT;
+			pDigTable->CurMultiSTAConnectState = DIG_MultiSTA_CONNECT;	
+		}	
+	}	
+	else if(check_buddy_fwstate(pAdapter, WIFI_STATION_STATE) == _TRUE	&& 
+		check_buddy_fwstate(pAdapter, _FW_LINKED) == _TRUE)
+	{
+		pDigTable->CurSTAConnectState = DIG_STA_CONNECT;
+
+	}
+#endif //CONFIG_CONCURRENT_MODE
+
 
 	dm_initial_gain_STA(pAdapter);
 	dm_initial_gain_Multi_STA(pAdapter);
+	//Baron temp DIG solution for DMP
+	//dm_CtrlInitGainByFA(pAdapter);
+
 	dm_CCK_PacketDetectionThresh(pAdapter);
 
 	pDigTable->PreSTAConnectState = pDigTable->CurSTAConnectState;
@@ -854,7 +921,11 @@ static void dm_InitDynamicTxPower(IN	PADAPTER	Adapter)
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 
 #ifdef CONFIG_USB_HCI
+#ifdef CONFIG_INTEL_PROXIM
+	if((pHalData->BoardType == BOARD_USB_High_PA)||(Adapter->proximity.proxim_support==_TRUE))
+#else
 	if(pHalData->BoardType == BOARD_USB_High_PA)
+#endif
 	{
 		dm_SavePowerIndex(Adapter);
 		pdmpriv->bDynamicTxPowerEnable = _TRUE;
@@ -900,7 +971,47 @@ static void dm_DynamicTxPower(IN	PADAPTER	Adapter)
 		pdmpriv->LastDTPLvl=TxHighPwrLevel_Normal;
 		return;
 	}
+#ifdef CONFIG_INTEL_PROXIM
+	if(Adapter->proximity.proxim_on== _TRUE){
+		struct proximity_priv *prox_priv=Adapter->proximity.proximity_priv;
+	// Intel set fixed tx power 
+	printk("\n %s  Adapter->proximity.proxim_on=%d prox_priv->proxim_modeinfo->power_output=%d \n",__FUNCTION__,Adapter->proximity.proxim_on,prox_priv->proxim_modeinfo->power_output);
+	if(prox_priv!=NULL){
+	if(prox_priv->proxim_modeinfo->power_output> 0)
 	
+	{
+		switch(prox_priv->proxim_modeinfo->power_output){
+			case 1:
+				pdmpriv->DynamicTxHighPowerLvl  = TxHighPwrLevel_100;
+				printk("TxHighPwrLevel_100\n");
+				break;
+			case 2:
+				pdmpriv->DynamicTxHighPowerLvl  = TxHighPwrLevel_70;
+				printk("TxHighPwrLevel_70\n");
+				break;
+			case 3:
+				pdmpriv->DynamicTxHighPowerLvl  = TxHighPwrLevel_50;
+				printk("TxHighPwrLevel_50\n");
+				break;
+			case 4:
+				pdmpriv->DynamicTxHighPowerLvl  = TxHighPwrLevel_35;
+				printk("TxHighPwrLevel_35\n");
+				break;
+			case 5:
+				pdmpriv->DynamicTxHighPowerLvl  = TxHighPwrLevel_15;
+				printk("TxHighPwrLevel_15\n");
+				break;
+			default:
+				pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_100;
+				printk("TxHighPwrLevel_100\n");
+				break;
+		}		
+	}
+	}
+	}
+	else
+#endif		
+{
 	if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)	// Default port
 	{
 		//todo: AP Mode
@@ -938,7 +1049,7 @@ static void dm_DynamicTxPower(IN	PADAPTER	Adapter)
 		pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 		//RT_TRACE(COMP_HIPWR, DBG_LOUD, ("TxHighPwrLevel_Normal\n"));
 	}
-
+}
 	if( (pdmpriv->DynamicTxHighPowerLvl != pdmpriv->LastDTPLvl) )
 	{
 		PHY_SetTxPowerLevel8192C(Adapter, pHalData->CurrentChannel);
@@ -1230,8 +1341,6 @@ dm_CheckEdcaTurbo(
 				edca_param = 0x6ea42b;
 			}
 #endif
-			if(Adapter->registrypriv.intel_class_mode==1)
-				edca_param=0xa44f;
 			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
 
 			pdmpriv->prv_traffic_idx = trafficIndex;
@@ -1260,30 +1369,28 @@ dm_CheckEdcaTurbo_EXIT:
 
 }
 
-#define		DPK_DELTA_MAPPING_NUM	13
-#define		index_mapping_HP_NUM	15
-//091212 chiyokolin
+#define DPK_DELTA_MAPPING_NUM	13
+#define index_mapping_HP_NUM		15
+
 static	VOID
 dm_TXPowerTrackingCallback_ThermalMeter_92C(
             IN PADAPTER	Adapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	u8			ThermalValue = 0, delta, delta_LCK, delta_IQK, delta_HP, TimeOut = 100, ThermalValue_HP_count = 0;
-	u32			ThermalValue_HP = 0;
-	s8			delta_DPK;
+	u8			ThermalValue = 0, delta, delta_LCK, delta_IQK, delta_HP, TimeOut = 100;
 	int 			ele_A, ele_D, TempCCk, X, value32;
 	int			Y, ele_C;
-	s8			OFDM_index[2], CCK_index = 0, OFDM_index_old[2], CCK_index_old = 0, delta_APK;
-	int			i = 0, CCKSwingNeedUpdate = 0;
+	s8			OFDM_index[2], CCK_index = 0, OFDM_index_old[2], CCK_index_old = 0;
+	int			i = 0;
 	BOOLEAN		is2T = IS_92C_SERIAL(pHalData->VersionID);
-#if 0	
-//#ifdef CONFIG_MP_INCLUDED
-	PMPT_CONTEXT	pMptCtx = &(Adapter->MptCtx);	
-	pu1Byte			TxPwrLevel = pMptCtx->TxPwrLevel;
-#endif
 
+#if MP_DRIVER == 1
+	PMPT_CONTEXT	pMptCtx = &(Adapter->mppriv.MptCtx);	
+	u8			*TxPwrLevel = pMptCtx->TxPwrLevel;
+#endif
 	u8			OFDM_min_index = 6, rf; //OFDM BB Swing should be less than +3.0dB, which is required by Arthur
+#if 0
 	u32			DPK_delta_mapping[2][DPK_DELTA_MAPPING_NUM] = {
 					{0x1c, 0x1c, 0x1d, 0x1d, 0x1e, 
 					 0x1f, 0x00, 0x00, 0x01, 0x01,
@@ -1291,14 +1398,18 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 					{0x1c, 0x1d, 0x1e, 0x1e, 0x1e,
 					 0x1f, 0x00, 0x00, 0x01, 0x02,
 					 0x02, 0x03, 0x03}};
-
-	s8			index_mapping_HP[index_mapping_HP_NUM] = {
+#endif
+#ifdef CONFIG_USB_HCI
+	u8			ThermalValue_HP_count = 0;
+	u32			ThermalValue_HP = 0;
+	s32			index_mapping_HP[index_mapping_HP_NUM] = {
 					0,	1,	3,	4,	6,	
 					7,	9,	10,	12,	13,	
 					15,	16,	18,	19,	21
 					};
 
 	s8			index_HP;
+#endif
 
 	pdmpriv->TXPowerTrackingCallbackCnt++;	//cosa add for debug
 	pdmpriv->bTXPowerTrackingInit = _TRUE;
@@ -1310,12 +1421,11 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 
 	//DBG_8192C("===>dm_TXPowerTrackingCallback_ThermalMeter_92C\n");
 
-	ThermalValue = (u8)PHY_QueryRFReg(Adapter, RF90_PATH_A, RF_T_METER, 0x1f);	// 0x24: RF Reg[4:0]	
+	ThermalValue = (u8)PHY_QueryRFReg(Adapter, RF_PATH_A, RF_T_METER, 0x1f);	// 0x24: RF Reg[4:0]	
 
 	//DBG_8192C("\n\nReadback Thermal Meter = 0x%x pre thermal meter 0x%x EEPROMthermalmeter 0x%x\n",ThermalValue,pdmpriv->ThermalValue,  pHalData->EEPROMThermalMeter);
 
 	rtl8192c_PHY_APCalibrate(Adapter, (ThermalValue - pHalData->EEPROMThermalMeter));
-	rtl8192c_PHY_DigitalPredistortion(Adapter);
 
 	if(is2T)
 		rf = 2;
@@ -1328,7 +1438,7 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 		{
 			//Query OFDM path A default setting 		
 			ele_D = PHY_QueryBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord)&bMaskOFDM_D;
-			for(i=0; i<OFDM_TABLE_SIZE; i++)	//find the index
+			for(i=0; i<OFDM_TABLE_SIZE_92C; i++)	//find the index
 			{
 				if(ele_D == (OFDMSwingTable[i]&bMaskOFDM_D))
 				{
@@ -1342,7 +1452,7 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 			if(is2T)
 			{
 				ele_D = PHY_QueryBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord)&bMaskOFDM_D;
-				for(i=0; i<OFDM_TABLE_SIZE; i++)	//find the index
+				for(i=0; i<OFDM_TABLE_SIZE_92C; i++)	//find the index
 				{
 					if(ele_D == (OFDMSwingTable[i]&bMaskOFDM_D))
 					{
@@ -1434,7 +1544,6 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 		}
 		delta_LCK = (ThermalValue > pdmpriv->ThermalValue_LCK)?(ThermalValue - pdmpriv->ThermalValue_LCK):(pdmpriv->ThermalValue_LCK - ThermalValue);
 		delta_IQK = (ThermalValue > pdmpriv->ThermalValue_IQK)?(ThermalValue - pdmpriv->ThermalValue_IQK):(pdmpriv->ThermalValue_IQK - ThermalValue);
-		delta_DPK = pdmpriv->ThermalValue_DPK - ThermalValue;
 
 		//DBG_8192C("Readback Thermal Meter = 0x%lx pre thermal meter 0x%lx EEPROMthermalmeter 0x%lx delta 0x%lx delta_LCK 0x%lx delta_IQK 0x%lx\n", ThermalValue, pHalData->ThermalValue, pHalData->EEPROMThermalMeter, delta, delta_LCK, delta_IQK);
 
@@ -1480,29 +1589,26 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 				{ 
 					for(i = 0; i < rf; i++)
 					 	pdmpriv->OFDM_index[i] -= delta;
-					
 					pdmpriv->CCK_index -= delta;
 				}
 				else
 				{
 					for(i = 0; i < rf; i++)			
 						pdmpriv->OFDM_index[i] += delta;
-					
 					pdmpriv->CCK_index += delta;
 				}
 			}
 
-	/*		
-			if(is2T)
+			/*if(is2T)
 			{
 				DBG_8192C("temp OFDM_A_index=0x%x, OFDM_B_index=0x%x, CCK_index=0x%x\n", 
-					pdmpriv->OFDM_index[0], pdmpriv->OFDM_index[1], pdmpriv->CCK_index);			
+					pdmpriv->OFDM_index[0], pdmpriv->OFDM_index[1], pdmpriv->CCK_index);
 			}
 			else
 			{
-				//DBG_8192C("temp OFDM_A_index=0x%x, CCK_index=0x%x\n",pdmpriv->OFDM_index[0], pdmpriv->CCK_index);			
-			}
-	*/
+				DBG_8192C("temp OFDM_A_index=0x%x, CCK_index=0x%x\n",
+					pdmpriv->OFDM_index[0], pdmpriv->CCK_index);
+			}*/
 
 			//no adjust
 #ifdef CONFIG_USB_HCI
@@ -1521,8 +1627,8 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 						OFDM_index[i] = pdmpriv->OFDM_index[i];
 					CCK_index = pdmpriv->CCK_index;						
 				}
-#if 0
-//#ifdef CONFIG_MP_INCLUDED
+
+#if MP_DRIVER == 1
 				for(i = 0; i < rf; i++)
 				{
 					if(TxPwrLevel[i] >=0 && TxPwrLevel[i] <=26)
@@ -1584,34 +1690,33 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 
 			for(i = 0; i < rf; i++)
 			{
-				if(OFDM_index[i] > OFDM_TABLE_SIZE-1)
-					OFDM_index[i] = OFDM_TABLE_SIZE-1;
+				if(OFDM_index[i] > (OFDM_TABLE_SIZE_92C-1))
+					OFDM_index[i] = (OFDM_TABLE_SIZE_92C-1);
 				else if (OFDM_index[i] < OFDM_min_index)
 					OFDM_index[i] = OFDM_min_index;
 			}
 						
-			if(CCK_index > CCK_TABLE_SIZE-1)
-				CCK_index = CCK_TABLE_SIZE-1;
+			if(CCK_index > (CCK_TABLE_SIZE-1))
+				CCK_index = (CCK_TABLE_SIZE-1);
 			else if (CCK_index < 0)
 				CCK_index = 0;		
 
-	/*		
-			if(is2T)
+			/*if(is2T)
 			{
-				DBG_8192C("new OFDM_A_index=0x%x, OFDM_B_index=0x%x, CCK_index=0x%x\n", OFDM_index[0], OFDM_index[1], CCK_index);
+				DBG_8192C("new OFDM_A_index=0x%x, OFDM_B_index=0x%x, CCK_index=0x%x\n", 
+					OFDM_index[0], OFDM_index[1], CCK_index);
 			}
 			else
 			{
-				//DBG_8192C("new OFDM_A_index=0x%x, CCK_index=0x%x\n",	OFDM_index[0], CCK_index);			
-			}
-	*/
-			
+				DBG_8192C("new OFDM_A_index=0x%x, CCK_index=0x%x\n", 
+					OFDM_index[0], CCK_index);
+			}*/
 		}
 
 		if(pdmpriv->TxPowerTrackControl && (delta != 0 || delta_HP != 0))
 		{
 			//Adujst OFDM Ant_A according to IQK result
-			ele_D = (OFDMSwingTable[(u8)OFDM_index[0]] & 0xFFC00000)>>22;
+			ele_D = (OFDMSwingTable[OFDM_index[0]] & 0xFFC00000)>>22;
 			X = pdmpriv->RegE94;
 			Y = pdmpriv->RegE9C;		
 
@@ -1642,7 +1747,7 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 			}
 			else
 			{
-				PHY_SetBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable[(u8)OFDM_index[0]]);				
+				PHY_SetBBReg(Adapter, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable[OFDM_index[0]]);				
 				PHY_SetBBReg(Adapter, rOFDM0_XCTxAFE, bMaskH4Bits, 0x00);
 				PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT31|BIT29, 0x00);
 			}
@@ -1651,24 +1756,24 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 
 			//Adjust CCK according to IQK result
 			if(!pdmpriv->bCCKinCH14){
-				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][0]);
-				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][1]);
-				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][2]);
-				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][3]);
-				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][4]);
-				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][5]);
-				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][6]);
-				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch1_Ch13[(u8)CCK_index][7]);
+				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch1_Ch13[CCK_index][0]);
+				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch1_Ch13[CCK_index][1]);
+				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch1_Ch13[CCK_index][2]);
+				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch1_Ch13[CCK_index][3]);
+				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch1_Ch13[CCK_index][4]);
+				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch1_Ch13[CCK_index][5]);
+				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch1_Ch13[CCK_index][6]);
+				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch1_Ch13[CCK_index][7]);
 			}
 			else{
-				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch14[(u8)CCK_index][0]);
-				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch14[(u8)CCK_index][1]);
-				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch14[(u8)CCK_index][2]);
-				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch14[(u8)CCK_index][3]);
-				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch14[(u8)CCK_index][4]);
-				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch14[(u8)CCK_index][5]);
-				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch14[(u8)CCK_index][6]);
-				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch14[(u8)CCK_index][7]);	
+				rtw_write8(Adapter, 0xa22, CCKSwingTable_Ch14[CCK_index][0]);
+				rtw_write8(Adapter, 0xa23, CCKSwingTable_Ch14[CCK_index][1]);
+				rtw_write8(Adapter, 0xa24, CCKSwingTable_Ch14[CCK_index][2]);
+				rtw_write8(Adapter, 0xa25, CCKSwingTable_Ch14[CCK_index][3]);
+				rtw_write8(Adapter, 0xa26, CCKSwingTable_Ch14[CCK_index][4]);
+				rtw_write8(Adapter, 0xa27, CCKSwingTable_Ch14[CCK_index][5]);
+				rtw_write8(Adapter, 0xa28, CCKSwingTable_Ch14[CCK_index][6]);
+				rtw_write8(Adapter, 0xa29, CCKSwingTable_Ch14[CCK_index][7]);	
 			}		
 
 			if(is2T)
@@ -1704,7 +1809,7 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 
 				}
 				else{
-					PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable[(u8)OFDM_index[1]]);										
+					PHY_SetBBReg(Adapter, rOFDM0_XBTxIQImbalance, bMaskDWord, OFDMSwingTable[OFDM_index[1]]);										
 					PHY_SetBBReg(Adapter, rOFDM0_XDTxAFE, bMaskH4Bits, 0x00);
 					PHY_SetBBReg(Adapter, rOFDM0_ECCAThreshold, BIT27|BIT25, 0x00);
 				}
@@ -1716,7 +1821,7 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 			DBG_8192C("TxPwrTracking 0xc80 = 0x%x, 0xc94 = 0x%x RF 0x24 = 0x%x\n", \
 					PHY_QueryBBReg(Adapter, 0xc80, bMaskDWord),\
 					PHY_QueryBBReg(Adapter, 0xc94, bMaskDWord), \
-					PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x24, bMaskDWord));
+					PHY_QueryRFReg(Adapter, RF_PATH_A, 0x24, bMaskDWord));
 			*/
 		}
 
@@ -1728,20 +1833,6 @@ dm_TXPowerTrackingCallback_ThermalMeter_92C(
 		{
 			pdmpriv->ThermalValue_IQK = ThermalValue;
 			rtl8192c_PHY_IQCalibrate(Adapter,_FALSE);
-		}
-
-		if(delta_DPK != 0)
-		{
-			delta_DPK = ThermalValue - pHalData->EEPROMThermalMeter;
-
-			//if(pdmpriv->bDPPathAOK || pdmpriv->bDPPathBOK)
-			//	DBG_8192C("TxPwrTracking delata_DPK = %d\n", delta_DPK);
-			
-			if(pdmpriv->bDPPathAOK)
-				PHY_SetBBReg(Adapter, 0xb68, 0x7c00, DPK_delta_mapping[0][((delta_DPK+13)/2)]);					
-			if(pdmpriv->bDPPathBOK)
-				PHY_SetBBReg(Adapter, 0xb6c, 0x7c00, DPK_delta_mapping[1][((delta_DPK+13)/2)]);							
-			pdmpriv->ThermalValue_DPK = ThermalValue;			
 		}
 
 		//update thermal meter value
@@ -1819,7 +1910,7 @@ dm_CheckTXPowerTracking_ThermalMeter(
 	if(!pdmpriv->TM_Trigger)		//at least delay 1 sec
 	{
 		//pHalData->TxPowerCheckCnt++;	//cosa add for debug
-		PHY_SetRFReg(Adapter, RF90_PATH_A, RF_T_METER, bRFRegOffsetMask, 0x60);
+		PHY_SetRFReg(Adapter, RF_PATH_A, RF_T_METER, bRFRegOffsetMask, 0x60);
 		//DBG_8192C("Trigger 92C Thermal Meter!!\n");
 		
 		pdmpriv->TM_Trigger = 1;
@@ -2998,9 +3089,9 @@ dm_CheckRfCtrlGPIO(
 		}			
 	}
 	else if (IS_HARDWARE_TYPE_8192CU(Adapter) ||
-		IS_HARDWARE_TYPE_8723U(Adapter)||
+		IS_HARDWARE_TYPE_8723AU(Adapter)||
 		IS_HARDWARE_TYPE_8192DU(Adapter) ||
-		IS_HARDWARE_TYPE_8723S(Adapter))
+		IS_HARDWARE_TYPE_8723AS(Adapter))
 	{	// Not support Selective suspend 
 		RT_TRACE(COMP_RF, DBG_LOUD, ("USB SS Disable\n"));
 		if (SUPPORT_HW_RADIO_DETECT(Adapter))
@@ -3260,14 +3351,14 @@ dm_CheckStatistics(
 		return;
 
 	//2008.12.10 tynli Add for getting Current_Tx_Rate_Reg flexibly.
-	Adapter->HalFunc.GetHwRegHandler( Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate) );
+	rtw_hal_get_hwreg( Adapter, HW_VAR_INIT_TX_RATE, (pu1Byte)(&Adapter->TxStats.CurrentInitTxRate) );
 
 	// Calculate current Tx Rate(Successful transmited!!)
 
 	// Calculate current Rx Rate(Successful received!!)
 	
 	//for tx tx retry count
-	Adapter->HalFunc.GetHwRegHandler( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
+	rtw_hal_get_hwreg( Adapter, HW_VAR_RETRY_COUNT, (pu1Byte)(&Adapter->TxStats.NumTxRetryCount) );
 #endif	
 }
 
@@ -3275,10 +3366,14 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 {	
 	u8	tmp1byte;
 	u8	bPbcPressed = _FALSE;
+	int i=0;
 
 	if(!padapter->registrypriv.hw_wps_pbc)
 		return;
 
+	do
+	{
+		i++;
 #ifdef CONFIG_USB_HCI
 	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
 	tmp1byte |= (HAL_8192C_HW_GPIO_WPS_BIT);
@@ -3294,30 +3389,44 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 	tmp1byte =rtw_read8(padapter, GPIO_IN);
 	
 	if (tmp1byte == 0xff)
-		return ;
+	{
+		bPbcPressed = _FALSE;
+		break ;
+	}	
 
 	if (tmp1byte&HAL_8192C_HW_GPIO_WPS_BIT)
 	{
 		bPbcPressed = _TRUE;
+
+		if(i<=3)
+			rtw_msleep_os(50);
 	}
 #else
 	tmp1byte = rtw_read8(padapter, GPIO_IN);
 	//RT_TRACE(COMP_IO, DBG_TRACE, ("dm_CheckPbcGPIO - %x\n", tmp1byte));
 
 	if (tmp1byte == 0xff || padapter->init_adpt_in_progress)
-		return ;
+	{
+		bPbcPressed = _FALSE;
+		break ;
+	}
 
 	if((tmp1byte&HAL_8192C_HW_GPIO_WPS_BIT)==0)
 	{
 		bPbcPressed = _TRUE;
-	}
-#endif
 
+		if(i<=3)
+			rtw_msleep_os(50);
+	}
+#endif		
+
+	}while(i<=3 && bPbcPressed == _TRUE);
+	
 	if( _TRUE == bPbcPressed)
 	{
 		// Here we only set bPbcPressed to true
 		// After trigger PBC, the variable will be set to false		
-		DBG_8192C("CheckPbcGPIO - PBC is pressed\n");
+		DBG_8192C("CheckPbcGPIO - PBC is pressed, try_cnt=%d\n", i-1);
                 
 #ifdef RTK_DMP_PLATFORM
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,12))
@@ -3336,7 +3445,7 @@ static void dm_CheckPbcGPIO(_adapter *padapter)
 		rtw_signal_process(padapter->pid[0], SIGUSR1);
 #endif
 #endif
-	}
+	}	
 }
 
 #ifdef CONFIG_PCI_HCI
@@ -3641,9 +3750,7 @@ rtl8192c_dm_RF_Saving(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	PS_T	*pPSTable = &pdmpriv->DM_PSTable;
-	
-	if(pAdapter->registrypriv.intel_class_mode==1)
-		return;
+
 	if(pdmpriv->initialize == 0){
 		pdmpriv->rf_saving_Reg874 = (PHY_QueryBBReg(pAdapter, rFPGA0_XCD_RFInterfaceSW, bMaskDWord)&0x1CC000)>>14;
 		pdmpriv->rf_saving_RegC70 = (PHY_QueryBBReg(pAdapter, rOFDM0_AGCParameter1, bMaskDWord)&BIT3)>>3;
@@ -4424,7 +4531,7 @@ void rtl8192c_init_dm_priv(IN PADAPTER Adapter)
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 
-	_rtw_memset(pdmpriv, 0, sizeof(struct dm_priv));
+	//_rtw_memset(pdmpriv, 0, sizeof(struct dm_priv));
 
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
 	_init_timer(&(pdmpriv->SwAntennaSwitchTimer),  Adapter->pnetdev , dm_SW_AntennaSwitchCallback, Adapter);
@@ -4601,51 +4708,78 @@ rtl8192c_InitHalDm(
 		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 	}
 }
-VOID
-rtl8192c_HalDmPollingC2HEvt(
-	IN	PADAPTER	padapter
-	)
-{
-	u8 trigger=0,evt_id=0,evt_len=0,idx=0,tmp8=0,evt_seq=0;
-	u8 evt_buf[15];
 
-	trigger=rtw_read8(padapter,REG_C2HEVT_CLEAR);
-	while (trigger ==0xFF)
+#ifdef CONFIG_CONCURRENT_MODE
+static void FindMinimumRSSI(PADAPTER Adapter)
+{
+	PHAL_DATA_TYPE	pbuddy_HalData;
+	struct dm_priv *pbuddy_dmpriv;
+	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
+
+	if(!rtw_buddy_adapter_up(Adapter))
+		return;
+	
+	pbuddy_HalData = GET_HAL_DATA(pbuddy_adapter);
+	pbuddy_dmpriv = &pbuddy_HalData->dmpriv;
+
+	//get min. [PWDB] when both interfaces are connected
+	if((check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE 
+		&& Adapter->stapriv.asoc_sta_count > 2 
+		&& check_buddy_fwstate(Adapter, _FW_LINKED)) || 
+		(check_buddy_fwstate(Adapter, WIFI_AP_STATE) == _TRUE 
+		&& pbuddy_adapter->stapriv.asoc_sta_count > 2
+		&& check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) ||
+		(check_fwstate(pmlmepriv, WIFI_STATION_STATE) 
+		&& check_fwstate(pmlmepriv, _FW_LINKED)
+		&& check_buddy_fwstate(Adapter,WIFI_STATION_STATE) 
+		&& check_buddy_fwstate(Adapter,_FW_LINKED)))
 	{
-		tmp8=rtw_read8(padapter,REG_C2HEVT_MSG_NORMAL);
-		evt_id=tmp8&0xf;
-		evt_len=(tmp8&0xf0)>>4;
-		evt_seq=rtw_read8(padapter,REG_C2HEVT_MSG_NORMAL+1);
-		DBG_8192C(" %s evt_id =0x%x evt_len=0x%x evt_seq=0x%x\n",__FUNCTION__,evt_id,evt_len,evt_seq);
-		for(idx=0;idx<evt_len;idx++){
-			evt_buf[idx]=rtw_read8(padapter,(REG_C2HEVT_MSG_NORMAL+2+idx));
-		}
-		switch(evt_id){
-			case EVT_EXT_RA_RPT_EID:
-				DBG_8192C(" %s EVT_EXT_RA_RPT_EID[0x%x] evt_len=0x%x\n",__FUNCTION__,evt_id,evt_len);
-				{
-					u8 mac_id=evt_buf[0],num_sta=evt_len-1;
-					struct sta_priv *pstapriv=&padapter->stapriv;
-					struct sta_info *psta=NULL;
-					DBG_8192C(" %s mac_id=%d\n",__FUNCTION__,mac_id);
-					for(idx=0;idx<num_sta;idx++){
-						psta=pstapriv->sta_aid[mac_id-2+idx];
-						if(psta !=NULL){
-							psta->init_rate=evt_buf[idx];
-							DBG_8192C(" %s mac_id=%d psta->init_rate=0x%x\n",__FUNCTION__,mac_id,psta->init_rate);
-						}	
-					}
-						
-				}
-			default:
-				DBG_8192C(" %s evt_id =0x%x evt_len=0x%x\n",__FUNCTION__,evt_id,evt_len);
-		}
-		rtw_write8(padapter, REG_C2HEVT_CLEAR,0x0);
-		rtw_mdelay_os(1);
-		trigger=rtw_read8(padapter,REG_C2HEVT_CLEAR);
+		if(pdmpriv->UndecoratedSmoothedPWDB > pbuddy_dmpriv->UndecoratedSmoothedPWDB)
+			pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
+	}//primary interface is not connected
+	else if((check_buddy_fwstate(Adapter, WIFI_AP_STATE) == _TRUE 
+		&& pbuddy_adapter->stapriv.asoc_sta_count > 2) || 
+		(check_buddy_fwstate(Adapter,WIFI_STATION_STATE) 
+		&& check_buddy_fwstate(Adapter,_FW_LINKED)))
+	{
+		pdmpriv->UndecoratedSmoothedPWDB = pbuddy_dmpriv->UndecoratedSmoothedPWDB;
 	}
-	//DBG_8192C(" %s End\n",__FUNCTION__);
-}
+	//secondary is not connected
+	else if((check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE 
+		&& Adapter->stapriv.asoc_sta_count > 2) || 
+		(check_fwstate(pmlmepriv, WIFI_STATION_STATE) 
+		&& check_fwstate(pmlmepriv, _FW_LINKED)))
+	{
+		pbuddy_dmpriv->UndecoratedSmoothedPWDB = 0;
+	}
+	//both interfaces are not connected
+	else
+	{
+		pdmpriv->UndecoratedSmoothedPWDB = 0;
+		pbuddy_dmpriv->UndecoratedSmoothedPWDB = 0;
+	}
+		
+	//primary interface is ap mode
+	if(check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE && Adapter->stapriv.asoc_sta_count > 2)
+	{
+		pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
+	}//secondary interface is ap mode
+	else if(check_buddy_fwstate(Adapter, WIFI_AP_STATE) == _TRUE && pbuddy_adapter->stapriv.asoc_sta_count > 2)
+	{
+		pdmpriv->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB;
+	}
+	else //both interfaces are not ap mode
+	{
+		pdmpriv->EntryMinUndecoratedSmoothedPWDB = pbuddy_dmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
+	}
+
+} 
+
+#endif //CONFIG_CONCURRENT_MODE
+
 VOID
 rtl8192c_HalDmWatchDog(
 	IN	PADAPTER	Adapter
@@ -4653,21 +4787,45 @@ rtl8192c_HalDmWatchDog(
 {
 	BOOLEAN		bFwCurrentInPSMode = _FALSE;
 	BOOLEAN		bFwPSAwake = _TRUE;
+	u8 hw_init_completed = _FALSE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
+#ifdef CONFIG_CONCURRENT_MODE
+	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
+#endif //CONFIG_CONCURRENT_MODE
 
+	#if defined(CONFIG_CONCURRENT_MODE)
+	if (Adapter->isprimary == _FALSE && pbuddy_adapter) {
+		hw_init_completed = pbuddy_adapter->hw_init_completed;
+	} else
+	#endif
+	{
+		hw_init_completed = Adapter->hw_init_completed;
+	}
+
+	if (hw_init_completed == _FALSE)
+		goto skip_dm;
 
 #ifdef CONFIG_LPS
-	bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-	Adapter->HalFunc.GetHwRegHandler(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	#if defined(CONFIG_CONCURRENT_MODE)
+	if (Adapter->iface_type != IFACE_PORT0 && pbuddy_adapter) {
+		bFwCurrentInPSMode = pbuddy_adapter->pwrctrlpriv.bFwCurrentInPSMode;
+		rtw_hal_get_hwreg(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	} else
+	#endif
+	{
+		bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
+		rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	}
 #endif
 
-#ifdef CONFIG_P2P
+#ifdef CONFIG_P2P_PS
 	// Fw is under p2p powersaving mode, driver should stop dynamic mechanism.
 	// modifed by thomas. 2011.06.11.
-	if(Adapter->wdinfo.p2p_ps_enable)
+	if(Adapter->wdinfo.p2p_ps_mode)
 		bFwPSAwake = _FALSE;
-#endif //CONFIG_P2P
+#endif // CONFIG_P2P_PS
 
 	// Stop dynamic mechanism when:
 	// 1. RF is OFF. (No need to do DM.)
@@ -4679,7 +4837,7 @@ rtl8192c_HalDmWatchDog(
 	// 4. RFChangeInProgress is TRUE. (Prevent from broken by IPS/HW/SW Rf off.)
 	// Noted by tynli. 2010.06.01.
 	//if(rfState == eRfOn)
-	if( (Adapter->hw_init_completed == _TRUE) 
+	if( (hw_init_completed == _TRUE) 
 		&& ((!bFwCurrentInPSMode) && bFwPSAwake))
 	{
 		//
@@ -4692,12 +4850,18 @@ rtl8192c_HalDmWatchDog(
 		//
 		PWDB_Monitor(Adapter);
 
+		dm_RSSIMonitorCheck(Adapter);
+
+#ifdef CONFIG_CONCURRENT_MODE
+		if(Adapter->adapter_type > PRIMARY_ADAPTER)
+			goto _record_initrate;
+
+		FindMinimumRSSI(Adapter);
+#endif
+
 		//
 		// Dynamic Initial Gain mechanism.
 		//
-
-		dm_RSSIMonitorCheck(Adapter);
-
 		dm_FalseAlarmCounterStatistics(Adapter);
 		dm_DIG(Adapter);
 
@@ -4714,7 +4878,12 @@ rtl8192c_HalDmWatchDog(
 		//
 		// Tx Power Tracking.
 		//
-		rtl8192c_dm_CheckTXPowerTracking(Adapter);
+#if MP_DRIVER == 0
+#ifdef CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK
+		if(pmlmepriv->LinkDetectInfo.bBusyTraffic == _FALSE)
+#endif //CONFIG_BUSY_TRAFFIC_SKIP_PWR_TRACK
+#endif
+			rtl8192c_dm_CheckTXPowerTracking(Adapter);
 
 		//
 		// Rate Adaptive by Rx Signal Strength mechanism.
@@ -4757,23 +4926,37 @@ rtl8192c_HalDmWatchDog(
 		//	PlatformScheduleWorkItem(&(GET_HAL_DATA(Adapter)->HalResetWorkItem));
 #endif
 
-#ifdef SUPPORT_64_STA
-		rtl8192c_HalDmPollingC2HEvt(Adapter);
-#endif //SUPPORT_64_STA
+
+_record_initrate:
+
 		// Read REG_INIDATA_RATE_SEL value for TXDESC.
 		if(check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE) == _TRUE)
 		{
 			pdmpriv->INIDATA_RATE[0] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
+
+#ifdef CONFIG_TDLS
+			if(Adapter->tdlsinfo.setup_state == TDLS_LINKED_STATE)
+			{
+				u8 i=1;
+				for(; i < (Adapter->tdlsinfo.macid_index) ; i++)
+				{
+					pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
+				}
+			}
+#endif //CONFIG_TDLS
+
 		}
 		else
 		{
 			u8	i;
-			for(i=1 ;( i < (Adapter->stapriv.asoc_sta_count + 1))&&(i <FW_CTRL_MACID ); i++)
+			for(i=1 ; i < (Adapter->stapriv.asoc_sta_count + 1); i++)
 			{
 				pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
 			}
 		}
 	}
+
+skip_dm:
 
 	// Check GPIO to determine current RF on/off and Pbc status.
 	// Check Hardware Radio ON/OFF or not	

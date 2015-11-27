@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
 
@@ -33,6 +32,8 @@
 #define _TKIP_WTMIC_	0x3
 #define _AES_			0x4
 #define _WEP104_		0x5
+
+#define is_wep_enc(alg) (((alg) == _WEP40_) || ((alg) == _WEP104_))
 
 #define _WPA_IE_ID_	0xdd
 #define _WPA2_IE_ID_	0x30
@@ -128,7 +129,6 @@ struct security_priv
 	unsigned int wpa2_pairwise_cipher;	
 #endif
 
-	u8 wps_phase;//for wps
 	u8 wps_ie[MAX_WPS_IE_LEN];//added in assoc req
 	int wps_ie_len;
 	
@@ -181,6 +181,7 @@ struct security_priv
 	//u32				PMKIDCount;						// Added by Annie, 2006-10-13.
 	//u8				szCapability[256];				// For WPA2-PSK using zero-config, by Annie, 2005-09-20.
 
+	u8 bWepDefaultKeyIdxSet;
 };
 
 struct sha256_state {
@@ -406,7 +407,7 @@ int wpa_tdls_ftie_mic(u8 *kck, u8 trans_seq,
 						u8 *mic);
 int tdls_verify_mic(u8 *kck, u8 trans_seq, 
 						u8 *lnkid, u8 *rsnie, u8 *timeoutie, u8 *ftie);
-#endif
+#endif //CONFIG_TDLS
 
 #ifdef PLATFORM_WINDOWS
 void rtw_use_tkipkey_handler (
@@ -419,5 +420,9 @@ void rtw_use_tkipkey_handler (
 #ifdef PLATFORM_LINUX
 void rtw_use_tkipkey_handler(void* FunctionContext);
 #endif
+
+#ifdef PLATFORM_FREEBSD
+void rtw_use_tkipkey_handler(void* FunctionContext);
+#endif //PLATFORM_FREEBSD
 #endif	//__RTL871X_SECURITY_H_
 

@@ -16,7 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-******************************************************************************/
+ ******************************************************************************/
 #define _RTW_IOCTL_SET_C_
 
 
@@ -24,7 +24,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <rtw_ioctl_set.h>
-#include <hal_init.h>
+#include <hal_intf.h>
 
 #ifdef CONFIG_USB_HCI
 #include <usb_osintf.h>
@@ -73,6 +73,7 @@ _func_exit_;
 	return ret;
 }
 
+u8 rtw_do_join(_adapter * padapter);
 u8 rtw_do_join(_adapter * padapter)
 {
 	_irqL	irqL;
@@ -81,7 +82,7 @@ u8 rtw_do_join(_adapter * padapter)
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	_queue	*queue	= &(pmlmepriv->scanned_queue);
 	u8 ret=_SUCCESS;
-	
+
 _func_enter_;
 
 	_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
@@ -106,15 +107,13 @@ _func_enter_;
 		//when set_ssid/set_bssid for rtw_do_join(), but scanning queue is empty
 		//we try to issue sitesurvey firstly	
             		
-		if(pmlmepriv->LinkDetectInfo.bBusyTraffic==_FALSE
-			#ifdef CONFIG_LAYER2_ROAMING
-			|| pmlmepriv->to_roaming >0
-			#endif
+		if (pmlmepriv->LinkDetectInfo.bBusyTraffic ==_FALSE
+			|| rtw_to_roaming(padapter) > 0
 		)
 		{
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("rtw_do_join(): site survey if scanned_queue is empty\n."));
 			// submit site_survey_cmd
-			if(_SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ) {
+			if(_SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)) ) {
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("rtw_do_join(): site survey return error\n."));
 			}
 		}
@@ -133,7 +132,7 @@ _func_enter_;
 		else if(ret == 2)//there is no need to wait for join
 		{
 			ret = _SUCCESS;
-			clr_fwstate(pmlmepriv, _FW_UNDER_LINKING);
+			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 			rtw_indicate_connect(padapter);
 		}
 		else	
@@ -182,7 +181,7 @@ _func_enter_;
 						// funk will reconnect, but funk will not sitesurvey before reconnect
 						RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("for funk to do roaming"));
 						if(pmlmepriv->sitesurveyctrl.traffic_busy==_FALSE)
-							rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1);
+							rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
 					}
 				
 				}				
@@ -191,13 +190,11 @@ _func_enter_;
 				//when set_ssid/set_bssid for rtw_do_join(), but there are no desired bss in scanning queue
 				//we try to issue sitesurvey firstly			
 				if(pmlmepriv->LinkDetectInfo.bBusyTraffic==_FALSE
-					#ifdef CONFIG_LAYER2_ROAMING
-					|| pmlmepriv->to_roaming >0
-					#endif
+					|| rtw_to_roaming(padapter) > 0
 				)
 				{
-					//DBG_8192C("rtw_do_join() when no desired bss in scanning queue \n");
-					if( _SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1)) ){
+					//DBG_871X("rtw_do_join() when   no desired bss in scanning queue \n");
+					if( _SUCCESS!=(ret=rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0)) ){
 						RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("do_join(): site survey return error\n."));
 					}
 				}				
@@ -317,8 +314,8 @@ u8 rtw_set_802_11_bssid(_adapter* padapter, u8 *bssid)
 	_irqL irqL;	
 	u8 status=_SUCCESS;
 	u32 cur_time = 0;
+
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	_queue *queue = &pmlmepriv->scanned_queue;
 	
 _func_enter_;
 	
@@ -355,7 +352,7 @@ _func_enter_;
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("set_bssid="MAC_FMT"\n", MAC_ARG(bssid) ));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("cur_bssid="MAC_FMT"\n", MAC_ARG(pmlmepriv->cur_network.network.MacAddress) ));
 
-			rtw_disassoc_cmd(padapter);
+			rtw_disassoc_cmd(padapter, 0, _TRUE);
 
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 				rtw_indicate_disconnect(padapter);
@@ -419,7 +416,6 @@ u8 rtw_set_802_11_ssid(_adapter* padapter, NDIS_802_11_SSID *ssid)
 
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
-
 	
 _func_enter_;
 	
@@ -460,7 +456,7 @@ _func_enter_;
 				if(rtw_is_same_ibss(padapter, pnetwork) == _FALSE)
 				{				
 					//if in WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE, create bss or rejoin again
-					rtw_disassoc_cmd(padapter);
+					rtw_disassoc_cmd(padapter, 0, _TRUE);
 
 					if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 						rtw_indicate_disconnect(padapter);
@@ -489,7 +485,7 @@ _func_enter_;
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("set_ssid=[%s] len=0x%x\n", ssid->Ssid, (unsigned int)ssid->SsidLength));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("assoc_ssid=[%s] len=0x%x\n", pmlmepriv->assoc_ssid.Ssid, (unsigned int)pmlmepriv->assoc_ssid.SsidLength));
 
-			rtw_disassoc_cmd(padapter);
+			rtw_disassoc_cmd(padapter, 0, _TRUE);
 
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 				rtw_indicate_disconnect(padapter);
@@ -578,6 +574,11 @@ _func_exit_;
 	
 }
 
+/*
+rtw_set_802_11_infrastructure_mode(~)
+	### NOTE:#### (!!!!)
+	MUST TAKE CARE THAT BEFORE CALLING THIS FUNC, YOU SHOULD HAVE LOCKED pmlmepriv->lock and scanned_queue->lock in sequence
+*/
 u8 rtw_set_802_11_infrastructure_mode(_adapter* padapter, 
 	NDIS_802_11_NETWORK_INFRASTRUCTURE networktype)
 {
@@ -594,24 +595,10 @@ _func_enter_;
 	
 	if(*pold_state != networktype)
 	{
-		_enter_critical_bh(&pmlmepriv->lock, &irqL);
 		
 		RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,(" change mode!"));
 		//DBG_871X("change mode, old_mode=%d, new_mode=%d, fw_state=0x%x\n", *pold_state, networktype, get_fwstate(pmlmepriv));
 
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||(*pold_state==Ndis802_11IBSS))
-			rtw_disassoc_cmd(padapter);
-
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||
-			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)== _TRUE) )
-			rtw_free_assoc_resources(padapter, 1);
-
-
-		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) || (*pold_state==Ndis802_11Infrastructure) ||(*pold_state==Ndis802_11IBSS))
-		{		
-			rtw_indicate_disconnect(padapter); //will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not
-		}	
-	
 		if(*pold_state==Ndis802_11APMode)
 		{		
 			//change to other mode from Ndis802_11APMode			
@@ -621,12 +608,25 @@ _func_enter_;
 			stop_ap_mode(padapter);
 #endif
 		}	
-		
+
+		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||(*pold_state==Ndis802_11IBSS))
+			rtw_disassoc_cmd(padapter, 0, _TRUE);
+
+		if((check_fwstate(pmlmepriv, _FW_LINKED)== _TRUE) ||
+			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)== _TRUE) )
+			rtw_free_assoc_resources(padapter, 0);
+
+		if((*pold_state == Ndis802_11Infrastructure) ||(*pold_state == Ndis802_11IBSS))
+	       {
+			if(check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+			{		
+				rtw_indicate_disconnect(padapter); //will clr Linked_state; before this function, we must have chked whether  issue dis-assoc_cmd or not
+			}
+	       }
+
 		*pold_state = networktype;
 
-				// clear WIFI_STATION_STATE; WIFI_AP_STATE; WIFI_ADHOC_STATE; WIFI_ADHOC_MASTER_STATE
-		//pmlmepriv->fw_state &= 0xffffff87;		
-		_clr_fwstate_(pmlmepriv, WIFI_STATION_STATE|WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE);
+		_clr_fwstate_(pmlmepriv, ~WIFI_NULL_STATE);
 				
 		switch(networktype)
 		{
@@ -657,7 +657,6 @@ _func_enter_;
 		//RT_TRACE(COMP_OID_SET, DBG_LOUD, ("set_infrastructure: fw_state:%x after changing mode\n",
 		//									get_fwstate(pmlmepriv) ));
 
-		_exit_critical_bh(&pmlmepriv->lock, &irqL);
 	}
 
 _func_exit_;
@@ -679,7 +678,7 @@ _func_enter_;
 	{
 		RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_info_,("MgntActrtw_set_802_11_disassociate: rtw_indicate_disconnect\n"));
 
-		rtw_disassoc_cmd(padapter);		
+		rtw_disassoc_cmd(padapter, 0, _TRUE);
 		rtw_indicate_disconnect(padapter);
 		rtw_free_assoc_resources(padapter, 1);			
 	}
@@ -691,7 +690,7 @@ _func_exit_;
 	return _TRUE;	
 }
 
-u8 rtw_set_802_11_bssid_list_scan(_adapter* padapter)
+u8 rtw_set_802_11_bssid_list_scan(_adapter* padapter, NDIS_802_11_SSID *pssid, int ssid_max_num)
 {	
 	_irqL	irqL;
 	struct	mlme_priv		*pmlmepriv= &padapter->mlmepriv;
@@ -724,17 +723,15 @@ _func_enter_;
 			RT_TRACE(_module_rtl871x_ioctl_set_c_,_drv_err_,("\n###pmlmepriv->sitesurveyctrl.traffic_busy==_TRUE\n\n"));
 		}
 	} else {		
-		#ifdef CONFIG_SET_SCAN_DENY_TIMER
-		if(ATOMIC_READ(&pmlmepriv->set_scan_deny)==1){
-			DBG_871X("%s:%d CONFIG_SET_SCAN_DENY_TIMER deny scan\n", __FUNCTION__, __LINE__);
+		if (rtw_is_scan_deny(padapter)) {
+			DBG_871X(FUNC_ADPT_FMT": scan deny\n", FUNC_ADPT_ARG(padapter));
 			indicate_wx_scan_complete_event(padapter);
 			return _SUCCESS;
 		}
-		#endif
 		
 		_enter_critical_bh(&pmlmepriv->lock, &irqL);		
 		
-		res = rtw_sitesurvey_cmd(padapter, NULL, 0);
+		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num, NULL, 0);
 		
 		_exit_critical_bh(&pmlmepriv->lock, &irqL);
 	}
@@ -1300,67 +1297,80 @@ _func_exit_;
 }
 
 /*
-* rtw_get_network_max_rate - 
+* rtw_get_cur_max_rate - 
 * @adapter: pointer to _adapter structure
-* @bss: 
 * 
-* Return 0 or Mbps
+* Return 0 or 100Kbps
 */
-u16 rtw_get_network_max_rate(_adapter *adapter, WLAN_BSSID_EX *bss)
+u16 rtw_get_cur_max_rate(_adapter *adapter)
 {
-	int i =0;
-	u8 *p;
-	u16 rate = 0, max_rate = 0, ht_cap=_FALSE;
-	u32 ht_ielen = 0;	
+	int	i = 0;
+	u8	*p;
+	u16	rate = 0, max_rate = 0;
+	struct mlme_ext_priv	*pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
+	WLAN_BSSID_EX  *pcur_bss = &pmlmepriv->cur_network.network;
+#ifdef CONFIG_80211N_HT
 	struct rtw_ieee80211_ht_cap *pht_capie;
-	u8	bw_40MHz=0, short_GI=0;
-	u16	mcs_rate=0;
 	u8	rf_type = 0;
-	struct registry_priv *pregpriv = &adapter->registrypriv;
+	u8	bw_40MHz=0, short_GI_20=0, short_GI_40=0;
+	u16	mcs_rate=0;
+	u32	ht_ielen = 0;	
+#endif
 
 #ifdef CONFIG_MP_INCLUDED
-	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == _TRUE)
-		return 0;
+	if (adapter->registrypriv.mp_mode == 1)
+	{	
+		if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == _TRUE)
+			return 0;
+	}
 #endif
 
 	if((check_fwstate(pmlmepriv, _FW_LINKED) != _TRUE) 
 		&& (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) != _TRUE))
 		return 0;
-	
 
-	p = rtw_get_ie(&bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, bss->IELength-12);
-	if(p && ht_ielen>0)
-	{
-		ht_cap = _TRUE;	
-		pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);
-	
-		_rtw_memcpy(&mcs_rate , pht_capie->supp_mcs_set, 2);
+#ifdef CONFIG_80211N_HT
+	if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N|WIRELESS_11_5N)) {
+		p = rtw_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->IELength-12);
+		if(p && ht_ielen>0)
+		{
+			pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);
+		
+			_rtw_memcpy(&mcs_rate , pht_capie->supp_mcs_set, 2);
 
-		bw_40MHz = (pht_capie->cap_info&IEEE80211_HT_CAP_SUP_WIDTH) ? 1:0;
-		short_GI = (pht_capie->cap_info&(IEEE80211_HT_CAP_SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1:0;
-	}
+			//bw_40MHz = (pht_capie->cap_info&IEEE80211_HT_CAP_SUP_WIDTH) ? 1:0;
+			//cur_bwmod is updated by beacon, pmlmeinfo is updated by association response
+			bw_40MHz = (pmlmeext->cur_bwmode && (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH & pmlmeinfo->HT_info.infos[0])) ? 1:0;
+			
+			//short_GI = (pht_capie->cap_info&(IEEE80211_HT_CAP_SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1:0;
+			short_GI_20 = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info&IEEE80211_HT_CAP_SGI_20) ? 1:0;
+			short_GI_40 = (pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info&IEEE80211_HT_CAP_SGI_40) ? 1:0;
 
-	while( (bss->SupportedRates[i]!=0) && (bss->SupportedRates[i]!=0xFF))
-	{
-		rate = bss->SupportedRates[i]&0x7F;
-		if(rate>max_rate)
-			max_rate = rate;
-		i++;
-	}
-
-	//TODO: should consider case of WEP and TKIP
-	if(ht_cap == _TRUE)
-	{
-		adapter->HalFunc.GetHwRegHandler(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if(rf_type == RF_1T1R)
-			max_rate = (bw_40MHz) ? ((short_GI)?150:135):((short_GI)?72:65);				
-		else
-			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
-	}
+			rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
+			max_rate = rtw_mcs_rate(
+				rf_type,
+				bw_40MHz & (pregistrypriv->cbw40_enable), 
+				short_GI_20,
+				short_GI_40,
+				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
+			);
+		}
+	} 
 	else
+#endif //CONFIG_80211N_HT
 	{
-		max_rate/=2;
+		while( (pcur_bss->SupportedRates[i]!=0) && (pcur_bss->SupportedRates[i]!=0xFF))
+		{
+			rate = pcur_bss->SupportedRates[i]&0x7F;
+			if(rate>max_rate)
+				max_rate = rate;
+			i++;
+		}
+	
+		max_rate = max_rate*10/2;
 	}
 
 	return max_rate;
@@ -1408,16 +1418,20 @@ int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 */
 int rtw_set_country(_adapter *adapter, const char *country_code)
 {
-	int channel_plan = RT_CHANNEL_DOMAIN_FCC;
+	int channel_plan = RT_CHANNEL_DOMAIN_WORLD_WIDE_5G;
+
+	DBG_871X("%s country_code:%s\n", __func__, country_code);
 
 	//TODO: should have a table to match country code and RT_CHANNEL_DOMAIN
-	//TODO: should consider 2-character and 3-character counter code
+	//TODO: should consider 2-character and 3-character country code
 	if(0 == strcmp(country_code, "US"))
 		channel_plan = RT_CHANNEL_DOMAIN_FCC;
 	else if(0 == strcmp(country_code, "EU"))
 		channel_plan = RT_CHANNEL_DOMAIN_ETSI;
 	else if(0 == strcmp(country_code, "JP"))
 		channel_plan = RT_CHANNEL_DOMAIN_MKK;
+	else if(0 == strcmp(country_code, "CN"))
+		channel_plan = RT_CHANNEL_DOMAIN_CHINA;
 	else
 		DBG_871X("%s unknown country_code:%s\n", __FUNCTION__, country_code);
 	
