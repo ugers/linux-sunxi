@@ -41,6 +41,7 @@ void update_beacon(_adapter *padapter, u8 ie_id, u8 *oui, u8 tx);
 void expire_timeout_chk(_adapter *padapter);	
 void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta);
 int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len);
+void rtw_ap_restore_network(_adapter *padapter);
 void rtw_set_macaddr_acl(_adapter *padapter, int mode);
 int rtw_acl_add_sta(_adapter *padapter, u8 *addr);
 int rtw_acl_remove_sta(_adapter *padapter, u8 *addr);

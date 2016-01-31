@@ -3609,10 +3609,11 @@ void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 #ifdef DBG_CONFIG_ERROR_DETECT
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_reset_value = &sreset_reset_value;	
-	pHalFunc->silentreset = &rtl8192c_silentreset_for_specific_platform;
+	pHalFunc->silentreset = &sreset_reset;
 	pHalFunc->sreset_xmit_status_check = &rtl8192c_sreset_xmit_status_check;
 	pHalFunc->sreset_linked_status_check  = &rtl8192c_sreset_linked_status_check;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
+	pHalFunc->sreset_inprogress= &sreset_inprogress;
 #endif
 
 #ifdef CONFIG_IOL

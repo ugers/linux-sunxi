@@ -114,6 +114,10 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_WOWLAN,
 	HW_VAR_VID,
 	HW_VAR_PID,
+	HW_VAR_MBSSID_CAM_WRITE,
+	HW_VAR_MBSSID_CAM_CLEAR,
+	HW_VAR_RCR_MBSSID_EN,
+	HW_VAR_USB_RXAGG_PAGE_TO,
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -125,7 +129,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HAL_DEF_RX_PACKET_OFFSET,
 	HAL_DEF_DBG_DUMP_RXPKT,//for dbg
 	HAL_DEF_DBG_DM_FUNC,//for dbg
-	
+	HAL_DEF_DUAL_MAC_MODE,
 }HAL_DEF_VARIABLE;
 
 typedef enum _HAL_INTF_PS_FUNC{
@@ -191,6 +195,7 @@ struct hal_ops {
 
 	s32	(*hal_xmit)(PADAPTER Adapter, struct xmit_frame *pxmitframe);
 	s32	(*mgnt_xmit)(PADAPTER Adapter, struct xmit_frame *pmgntframe);
+        s32	(*hal_xmitframe_enqueue)(_adapter *padapter, struct xmit_frame *pxmitframe);
 
 	u32	(*read_bbreg)(PADAPTER Adapter, u32 RegAddr, u32 BitMask);
 	void	(*write_bbreg)(PADAPTER Adapter, u32 RegAddr, u32 BitMask, u32 Data);
@@ -215,6 +220,7 @@ struct hal_ops {
 	void (*sreset_xmit_status_check)(_adapter *padapter);
 	void (*sreset_linked_status_check) (_adapter *padapter);
 	u8 (*sreset_get_wifi_status)(_adapter *padapter);
+	bool (*sreset_inprogress)(_adapter *padapter);
 #endif
 
 #ifdef CONFIG_IOL
@@ -366,6 +372,7 @@ u32 rtw_hal_inirp_deinit(_adapter *padapter);
 
 u8 rtw_hal_intf_ps_func(_adapter *padapter,HAL_INTF_PS_FUNC efunc_id, u8* val);
 
+s32	rtw_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtw_hal_xmit(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32 rtw_hal_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
 
@@ -408,6 +415,7 @@ void rtw_hal_sreset_reset_value(_adapter *padapter);
 void rtw_hal_sreset_xmit_status_check(_adapter *padapter);
 void rtw_hal_sreset_linked_status_check(_adapter *padapter);
 u8 rtw_hal_sreset_get_wifi_status(_adapter *padapter);
+bool rtw_hal_sreset_inprogress(_adapter *padapter);
 #endif
 
 #ifdef CONFIG_IOL

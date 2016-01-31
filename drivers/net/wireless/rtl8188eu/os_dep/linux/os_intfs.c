@@ -44,13 +44,8 @@ int rtw_network_mode = Ndis802_11IBSS;//Ndis802_11Infrastructure;//infra, ad-hoc
 //NDIS_802_11_SSID	ssid;
 int rtw_channel = 1;//ad-hoc support requirement
 int rtw_wireless_mode = WIRELESS_MODE_MAX;
-#ifdef CONFIG_DBG_VCS_CTL
-int rtw_vrtl_carrier_sense = ENABLE_VCS;
-int rtw_vcs_type = CTS_TO_SELF;
-#else
 int rtw_vrtl_carrier_sense = AUTO_VCS;
 int rtw_vcs_type = RTS_CTS;//*
-#endif
 int rtw_rts_thresh = 2347;//*
 int rtw_frag_thresh = 2346;//*
 int rtw_preamble = PREAMBLE_LONG;//long, short, auto
@@ -321,6 +316,10 @@ uint rtw_notch_filter = RTW_NOTCH_FILTER;
 module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 
+uint rtw_hiq_filter = CONFIG_RTW_HIQ_FILTER;
+module_param(rtw_hiq_filter, uint, 0644);
+MODULE_PARM_DESC(rtw_hiq_filter, "0:allow all, 1:allow special, 2:deny all");
+
 #if defined(CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY) //eFuse: Regulatory selection=1
 int rtw_tx_pwr_lmt_enable = 1;
 int rtw_tx_pwr_by_rate = 1;
@@ -533,6 +532,7 @@ _func_enter_;
 #endif
 	registry_par->qos_opt_enable = (u8)rtw_qos_opt_enable;
 
+	registry_par->hiq_filter = (u8)rtw_hiq_filter;
 _func_exit_;
 
 	return status;
@@ -1046,6 +1046,8 @@ struct dvobj_priv *devobj_init(void)
 
 	ATOMIC_SET(&pdvobj->disable_func, 0);
 
+	_rtw_spinlock_init(&pdvobj->cam_ctl.lock);
+
 	return pdvobj;
 
 }
@@ -1061,6 +1063,8 @@ void devobj_deinit(struct dvobj_priv *pdvobj)
 	_rtw_mutex_free(&pdvobj->h2c_fwcmd_mutex);
 	_rtw_mutex_free(&pdvobj->setch_mutex);
 	_rtw_mutex_free(&pdvobj->setbw_mutex);
+
+	_rtw_spinlock_free(&pdvobj->cam_ctl.lock);
 
 	rtw_mfree((u8*)pdvobj, sizeof(*pdvobj));
 }	

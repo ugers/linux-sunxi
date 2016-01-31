@@ -1296,6 +1296,77 @@ void dump_wps_ie(u8 *ie, u32 ie_len) {
 }
 
 #ifdef CONFIG_P2P
+/**
+ * rtw_get_p2p_merged_len - Get merged ie length from muitiple p2p ies.
+ * @in_ie: Pointer of the first p2p ie
+ * @in_len: Total len of muiltiple p2p ies
+ * Returns: Length of merged p2p ie length
+ */
+u32 rtw_get_p2p_merged_ies_len(u8 *in_ie, u32 in_len)
+{
+	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8 OUI[4] = { 0x50, 0x6f, 0x9a, 0x09 };
+	int i=0;
+	int j=0, len=0;
+
+	while( i < in_len)
+	{
+		pIE = (PNDIS_802_11_VARIABLE_IEs)(in_ie+ i);
+
+		if( pIE->ElementID == _VENDOR_SPECIFIC_IE_ && _rtw_memcmp(pIE->data, OUI, 4) )
+		{
+			len += pIE->Length-4; // 4 is P2P OUI length, don't count it in this loop
+		}
+
+		i += (pIE->Length + 2);
+	}
+
+	return len + 4;	// Append P2P OUI length at last.
+}
+
+/**
+ * rtw_p2p_merge_ies - Merge muitiple p2p ies into one
+ * @in_ie: Pointer of the first p2p ie
+ * @in_len: Total len of muiltiple p2p ies
+ * @merge_ie: Pointer of merged ie
+ * Returns: Length of merged p2p ie
+ */
+int rtw_p2p_merge_ies(u8 *in_ie, u32 in_len, u8 *merge_ie)
+{
+	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8 len = 0;
+	u8 OUI[4] = { 0x50, 0x6f, 0x9a, 0x09 };
+	u8 ELOUI[6] = { 0xDD, 0x00, 0x50, 0x6f, 0x9a, 0x09 };	//EID;Len;OUI, Len would copy at the end of function
+	int i=0;
+
+	if( merge_ie != NULL)
+	{
+		//Set first P2P OUI
+		_rtw_memcpy(merge_ie, ELOUI, 6);
+		merge_ie += 6;
+
+		while( i < in_len)
+		{
+			pIE = (PNDIS_802_11_VARIABLE_IEs)(in_ie+ i);
+
+			// Take out the rest of P2P OUIs
+			if( pIE->ElementID == _VENDOR_SPECIFIC_IE_ && _rtw_memcmp(pIE->data, OUI, 4) )
+			{
+				_rtw_memcpy( merge_ie, pIE->data +4, pIE->Length -4);
+				len += pIE->Length-4;
+				merge_ie += pIE->Length-4;
+			}
+
+			i += (pIE->Length + 2);
+		}
+
+		return len + 4;	// 4 is for P2P OUI
+
+	}
+
+	return 0;
+}
+
 void dump_p2p_ie(u8 *ie, u32 ie_len) {
 	u8* pos = (u8*)ie;
 	u8 id;

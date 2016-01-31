@@ -1959,8 +1959,8 @@ void wfd_ie_tdls(_adapter * padapter, u8 *pframe, u32 *pktlen )
 
 	//	Value1:
 	//	WFD device information
-	//	WFD primary sink + available for WFD session + Preferred TDLS + WSD ( WFD Service Discovery )
-	RTW_PUT_BE16(wfdie + wfdielen, WFD_DEVINFO_PSINK | WFD_DEVINFO_SESSION_AVAIL 
+	//	available for WFD session + Preferred TDLS + WSD ( WFD Service Discovery )
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->wfd_device_type | WFD_DEVINFO_SESSION_AVAIL 
 								| WFD_DEVINFO_PC_TDLS | WFD_DEVINFO_WSD);
 	wfdielen += 2;
 

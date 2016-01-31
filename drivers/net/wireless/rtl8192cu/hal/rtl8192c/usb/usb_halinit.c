@@ -232,7 +232,11 @@ _ConfigChipOutEP(
 		pHalData->OutEpQueueSel |= TX_SELE_HQ;
 		pHalData->OutEpNumber++;
 	}
-	
+
+#ifdef CONFIG_USB_ONE_OUT_EP
+		return;
+#endif
+		
 	if((value8 >> USB_NORMAL_SIE_EP_SHIFT) & USB_NORMAL_SIE_EP_MASK){
 		pHalData->OutEpQueueSel |= TX_SELE_NQ;
 		pHalData->OutEpNumber++;
@@ -261,13 +265,14 @@ static BOOLEAN HalUsbSetQueuePipeMapping8192CUsb(
 
 	_ConfigChipOutEP(pAdapter, NumOutPipe);
 
+	#ifndef CONFIG_USB_ONE_OUT_EP
 	// Normal chip with one IN and one OUT doesn't have interrupt IN EP.
 	if(1 == pHalData->OutEpNumber){
 		if(1 != NumInPipe){
 			return result;
 		}
 	}
-
+	#endif
 	result = _MappingOutEP(pAdapter, NumOutPipe);
 	
 	return result;
@@ -308,8 +313,13 @@ void rtl8192cu_interface_configure(_adapter *padapter)
 	pHalData->UsbRxAggPageTimeout	= 0x4; //6, absolute time = 34ms/(2^6)
 #endif
 
-	HalUsbSetQueuePipeMapping8192CUsb(padapter,
-				pdvobjpriv->RtNumInPipes, pdvobjpriv->RtNumOutPipes);
+	HalUsbSetQueuePipeMapping8192CUsb(padapter, pdvobjpriv->RtNumInPipes,
+		#ifdef CONFIG_USB_ONE_OUT_EP
+		1
+		#else
+		pdvobjpriv->RtNumOutPipes
+		#endif
+		);
 
 }
 
@@ -760,8 +770,6 @@ _InitQueueReservedPage(
 	{ //for WMM 
 		//RT_ASSERT((outEPNum>=2), ("for WMM ,number of out-ep must more than or equal to 2!\n"));
 
-		numPubQ = (bWiFiConfig)?WMM_NORMAL_PAGE_NUM_PUBQ:NORMAL_PAGE_NUM_PUBQ;
-
 		if(pHalData->OutEpQueueSel & TX_SELE_HQ){
 			numHQ = (bWiFiConfig)?WMM_NORMAL_PAGE_NUM_HPQ:NORMAL_PAGE_NUM_HPQ;
 		}
@@ -775,6 +783,11 @@ _InitQueueReservedPage(
 		}
 		value8 = (u8)_NPQ(numNQ);
 		rtw_write8(Adapter, REG_RQPN_NPQ, value8);
+
+		if (bWiFiConfig)
+			numPubQ = WMM_NORMAL_TX_TOTAL_PAGE_NUMBER - numHQ - numLQ - numNQ;
+		else
+			numPubQ = TX_TOTAL_PAGE_NUMBER - numHQ - numLQ - numNQ;
 	}
 
 	// TX DMA
@@ -5436,18 +5449,20 @@ _func_enter_;
 			{
 				DIG_T	*pDigTable = &pdmpriv->DM_DigTable;					
 				u32 		rx_gain = ((u32 *)(val))[0];
-				
+
 				if(rx_gain == 0xff){//restore rx gain
 					pDigTable->CurIGValue = pDigTable->BackupIGValue;
 					PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f,pDigTable->CurIGValue );
 					PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f,pDigTable->CurIGValue);
 				}
 				else{
-					pDigTable->BackupIGValue = pDigTable->CurIGValue;					
+					pDigTable->BackupIGValue = pDigTable->CurIGValue;
 					PHY_SetBBReg(Adapter, rOFDM0_XAAGCCore1, 0x7f,rx_gain );
 					PHY_SetBBReg(Adapter, rOFDM0_XBAGCCore1, 0x7f,rx_gain);
 					pDigTable->CurIGValue = (u8)rx_gain;
 				}
+
+
 			}
 			break;
 		case HW_VAR_TRIGGER_GPIO_0:
@@ -5656,6 +5671,9 @@ _func_enter_;
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw
 			rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0); 
+			break;
+		case HW_VAR_USB_RXAGG_PAGE_TO:
+			rtw_write8(Adapter, REG_USB_DMA_AGG_TO, *((u8 *)val));
 			break;
 		default:
 			break;
@@ -6224,6 +6242,7 @@ _func_enter_;
 
 	pHalFunc->hal_xmit = &rtl8192cu_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8192cu_mgnt_xmit;
+	pHalFunc->hal_xmitframe_enqueue = &rtl8192cu_hal_xmitframe_enqueue;
 
 	//pHalFunc->read_bbreg = &rtl8192c_PHY_QueryBBReg;
 	//pHalFunc->write_bbreg = &rtl8192c_PHY_SetBBReg;

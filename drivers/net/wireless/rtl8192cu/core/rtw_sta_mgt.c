@@ -337,11 +337,13 @@ _func_enter_;
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 	
-	_enter_critical_bh(&(pfree_sta_queue->lock), &irqL);
+	//_enter_critical_bh(&(pfree_sta_queue->lock), &irqL);
+	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
 
 	if (_rtw_queue_empty(pfree_sta_queue) == _TRUE)
 	{
-		_exit_critical_bh(&(pfree_sta_queue->lock), &irqL);
+		//_exit_critical_bh(&(pfree_sta_queue->lock), &irqL);
+		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
 		psta = NULL;
 	}
 	else
@@ -350,7 +352,7 @@ _func_enter_;
 		
 		rtw_list_delete(&(psta->list));
 
-		_exit_critical_bh(&(pfree_sta_queue->lock), &irqL);
+		//_exit_critical_bh(&(pfree_sta_queue->lock), &irqL);
 		
 		tmp_aid = psta->aid;	
 	
@@ -369,13 +371,13 @@ _func_enter_;
 		}
 		phash_list = &(pstapriv->sta_hash[index]);
 
-		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
+		//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
 
 		rtw_list_insert_tail(&psta->hash_list, phash_list);
 
 		pstapriv->asoc_sta_count ++ ;
 
-		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
+		//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
 
 // Commented by Albert 2009/08/13
 // For the SMC router, the sequence number of first packet of WPS handshake will be 0.
@@ -436,6 +438,8 @@ _func_enter_;
 	
 exit:
 
+	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
+
 _func_exit_;
 
 	return psta;
@@ -454,12 +458,18 @@ u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta)
 	struct	sta_xmit_priv	*pstaxmitpriv;
 	struct	xmit_priv	*pxmitpriv= &padapter->xmitpriv;
 	struct	sta_priv *pstapriv = &padapter->stapriv;
+	struct hw_xmit *phwxmit;
 	
 
 _func_enter_;	
 	
 	if (psta == NULL)
 		goto exit;
+
+
+	_enter_critical_bh(&psta->lock, &irqL0);
+	psta->state &= ~_FW_LINKED;
+	_exit_critical_bh(&psta->lock, &irqL0);
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 
@@ -475,39 +485,41 @@ _func_enter_;
 	rtw_free_xmitframe_queue(pxmitpriv, &psta->sleep_q);
 	psta->sleepq_len = 0;
 	
+	//vo
 	//_enter_critical_bh(&(pxmitpriv->vo_pending.lock), &irqL0);
-
 	rtw_free_xmitframe_queue( pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
-
 	rtw_list_delete(&(pstaxmitpriv->vo_q.tx_pending));
-
+	phwxmit = pxmitpriv->hwxmits;
+	phwxmit->accnt -= pstaxmitpriv->vo_q.qcnt;
+	pstaxmitpriv->vo_q.qcnt = 0;
 	//_exit_critical_bh(&(pxmitpriv->vo_pending.lock), &irqL0);
-	
 
+	//vi
 	//_enter_critical_bh(&(pxmitpriv->vi_pending.lock), &irqL0);
-
 	rtw_free_xmitframe_queue( pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
-
 	rtw_list_delete(&(pstaxmitpriv->vi_q.tx_pending));
-
+	phwxmit = pxmitpriv->hwxmits+1;
+	phwxmit->accnt -= pstaxmitpriv->vi_q.qcnt;
+	pstaxmitpriv->vi_q.qcnt = 0;
 	//_exit_critical_bh(&(pxmitpriv->vi_pending.lock), &irqL0);
 
-
-	//_enter_critical_bh(&(pxmitpriv->bk_pending.lock), &irqL0);
-
-	rtw_free_xmitframe_queue( pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
-
-	rtw_list_delete(&(pstaxmitpriv->bk_q.tx_pending));
-
-	//_exit_critical_bh(&(pxmitpriv->bk_pending.lock), &irqL0);
-
+	//be
 	//_enter_critical_bh(&(pxmitpriv->be_pending.lock), &irqL0);
-
 	rtw_free_xmitframe_queue( pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
-
 	rtw_list_delete(&(pstaxmitpriv->be_q.tx_pending));
-
+	phwxmit = pxmitpriv->hwxmits+2;
+	phwxmit->accnt -= pstaxmitpriv->be_q.qcnt;
+	pstaxmitpriv->be_q.qcnt = 0;
 	//_exit_critical_bh(&(pxmitpriv->be_pending.lock), &irqL0);
+	
+	//bk
+	//_enter_critical_bh(&(pxmitpriv->bk_pending.lock), &irqL0);
+	rtw_free_xmitframe_queue( pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
+	rtw_list_delete(&(pstaxmitpriv->bk_q.tx_pending));
+	phwxmit = pxmitpriv->hwxmits+3;
+	phwxmit->accnt -= pstaxmitpriv->bk_q.qcnt;
+	pstaxmitpriv->bk_q.qcnt = 0;
+	//_exit_critical_bh(&(pxmitpriv->bk_pending.lock), &irqL0);
 	
 	_exit_critical_bh(&pxmitpriv->lock, &irqL0);
 	
@@ -516,9 +528,9 @@ _func_enter_;
 	pstapriv->asoc_sta_count --;
 	
 	
-	// re-init sta_info; 20061114
-	_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
-	_rtw_init_sta_recv_priv(&psta->sta_recvpriv);
+	// re-init sta_info; 20061114 // will be init in alloc_stainfo
+	//_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
+	//_rtw_init_sta_recv_priv(&psta->sta_recvpriv);
 
 	_cancel_timer_ex(&psta->addba_retry_timer);
 
@@ -616,9 +628,11 @@ _func_enter_;
 
 #endif	// CONFIG_AP_MODE	
 
-	_enter_critical_bh(&(pfree_sta_queue->lock), &irqL0);
+	 _rtw_spinlock_free(&psta->lock);
+
+	//_enter_critical_bh(&(pfree_sta_queue->lock), &irqL0);
 	rtw_list_insert_tail(&psta->list, get_list_head(pfree_sta_queue));
-	_exit_critical_bh(&(pfree_sta_queue->lock), &irqL0);
+	//_exit_critical_bh(&(pfree_sta_queue->lock), &irqL0);
 
 exit:
 	

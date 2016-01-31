@@ -115,7 +115,7 @@ static void rtw_free_mlme_ie_data(u8 **ppie, u32 *plen)
 {
 	if(*ppie)
 	{		
-		_rtw_mfree(*ppie, *plen);
+		rtw_mfree(*ppie, *plen);
 		*plen = 0;
 		*ppie=NULL;
 	}	
@@ -719,10 +719,10 @@ _func_enter_;
 	rtw_hal_antdiv_rssi_compared(padapter, dst, src); //this will update src.Rssi, need consider again
 #endif
 
-	#if defined(DBG_RX_SIGNAL_DISPLAY_PROCESSING) && 1	
+	#if defined(DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) && 1
 	if(strcmp(dst->Ssid.Ssid, DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) == 0) {
-		DBG_871X("%s %s("MAC_FMT", ch%u) ss_ori:%3u, sq_ori:%3u, rssi_ori:%3ld, ss_smp:%3u, sq_smp:%3u, rssi_smp:%3ld\n"
-			, __FUNCTION__
+		DBG_871X(FUNC_ADPT_FMT" %s("MAC_FMT", ch%u) ss_ori:%3u, sq_ori:%3u, rssi_ori:%3ld, ss_smp:%3u, sq_smp:%3u, rssi_smp:%3ld\n"
+			, FUNC_ADPT_ARG(padapter)
 			, src->Ssid.Ssid, MAC_ARG(src->MacAddress), src->Configuration.DSConfig
 			,ss_ori, sq_ori, rssi_ori
 			,ss_smp, sq_smp, rssi_smp
@@ -762,10 +762,10 @@ _func_enter_;
 	dst->PhyInfo.SignalQuality = sq_final;
 	dst->Rssi = rssi_final;
 
-	#if defined(DBG_RX_SIGNAL_DISPLAY_PROCESSING) && 1
+	#if defined(DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) && 1
 	if(strcmp(dst->Ssid.Ssid, DBG_RX_SIGNAL_DISPLAY_SSID_MONITORED) == 0) {
-		DBG_871X("%s %s("MAC_FMT"), SignalStrength:%u, SignalQuality:%u, RawRSSI:%ld\n"
-			, __FUNCTION__
+		DBG_871X(FUNC_ADPT_FMT" %s("MAC_FMT"), SignalStrength:%u, SignalQuality:%u, RawRSSI:%ld\n"
+			, FUNC_ADPT_ARG(padapter)
 			, dst->Ssid.Ssid, MAC_ARG(dst->MacAddress), dst->PhyInfo.SignalStrength, dst->PhyInfo.SignalQuality, dst->Rssi);
 	}
 	#endif
@@ -1022,8 +1022,20 @@ int rtw_is_desired_network(_adapter *adapter, struct wlan_network *pnetwork)
 	}
 	if (adapter->registrypriv.wifi_spec == 1) //for  correct flow of 8021X  to do....
 	{
+		u8 *p=NULL;
+		uint ie_len=0;
+
 		if ((desired_encmode == Ndis802_11EncryptionDisabled) && (privacy != 0))
 	            bselected = _FALSE;
+
+		if ( psecuritypriv->ndisauthtype == Ndis802_11AuthModeWPA2PSK) {
+			p = rtw_get_ie(pnetwork->network.IEs + _BEACON_IE_OFFSET_, _RSN_IE_2_, &ie_len, (pnetwork->network.IELength - _BEACON_IE_OFFSET_));
+			if (p && ie_len>0) {
+				bselected = _TRUE;
+			} else {
+				bselected = _FALSE;
+			}
+		}
 	}
 	
 
@@ -1141,7 +1153,9 @@ _func_exit_;
 void rtw_surveydone_event_callback(_adapter	*adapter, u8 *pbuf)
 {
 	_irqL  irqL;
+	u8 timer_cancelled = _FALSE;
 	struct	mlme_priv	*pmlmepriv = &(adapter->mlmepriv);
+	
 #ifdef CONFIG_MLME_EXT	
 
 	mlmeext_surveydone_event_callback(adapter);
@@ -1151,7 +1165,6 @@ void rtw_surveydone_event_callback(_adapter	*adapter, u8 *pbuf)
 _func_enter_;			
 
 	_enter_critical_bh(&pmlmepriv->lock, &irqL);
-
 	if(pmlmepriv->wps_probe_req_ie)
 	{
 		u32 free_len = pmlmepriv->wps_probe_req_ie_len;
@@ -1164,9 +1177,10 @@ _func_enter_;
 	
 	if (check_fwstate(pmlmepriv,_FW_UNDER_SURVEY))
 	{
-		u8 timer_cancelled;
-		
-		_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
+		//u8 timer_cancelled;
+
+		timer_cancelled = _TRUE;
+		//_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
 		
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	}
@@ -1174,6 +1188,13 @@ _func_enter_;
 	
 		RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,("nic status =%x, survey done event comes too late!\n", get_fwstate(pmlmepriv)));	
 	}
+	_exit_critical_bh(&pmlmepriv->lock, &irqL);
+
+	if(timer_cancelled)
+		_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
+
+
+	_enter_critical_bh(&pmlmepriv->lock, &irqL);
 
 	#ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
 	rtw_set_signal_stat_timer(&adapter->recvpriv);
@@ -1411,6 +1432,32 @@ _func_enter_;
 	if(pwlan)
 	{
 		pwlan->fixed = _FALSE;
+#ifdef CONFIG_P2P
+		if(!rtw_p2p_chk_state(&adapter->wdinfo, P2P_STATE_NONE))
+		{
+			u32 p2p_ielen=0;
+			u8  *p2p_ie;
+			//u16 capability;
+			u8 *pcap = NULL;
+			u32 capability_len=0;
+
+			//DBG_871X("free disconnecting network\n");
+			//rtw_free_network_nolock(pmlmepriv, pwlan);
+
+			if((p2p_ie=rtw_get_p2p_ie(pwlan->network.IEs+_FIXED_IE_LENGTH_, pwlan->network.IELength-_FIXED_IE_LENGTH_, NULL, &p2p_ielen)))
+			{
+				pcap = rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_CAPABILITY, NULL, &capability_len);
+				if(pcap && capability_len==2)
+				{
+					u16 cap = *(u16*)pcap ;
+					*(u16*)pcap = cap&0x00ff;//clear group capability when free this network
+				}
+			}
+
+			rtw_set_scan_deny(adapter, 2000);
+			//rtw_clear_scan_deny(adapter);
+		}
+#endif //CONFIG_P2P
 	}
 	else
 	{
@@ -1427,7 +1474,7 @@ _func_enter_;
 	if(lock_scanned_queue)
 		_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 	
-	pmlmepriv->key_mask = 0;
+	adapter->securitypriv.key_mask = 0;
 
 _func_exit_;
 	
@@ -1512,6 +1559,9 @@ _func_enter_;
 	{
 		rtw_os_indicate_disconnect(padapter);
 
+		//set ips_deny_time to avoid enter IPS before LPS leave
+		padapter->pwrctrlpriv.ips_deny_time = rtw_get_current_time() + rtw_ms_to_systime(3000);
+
 	      _clr_fwstate_(pmlmepriv, _FW_LINKED);
 
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
@@ -1562,7 +1612,7 @@ void rtw_scan_abort(_adapter *adapter)
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
 		if (!adapter->bDriverStopped && !adapter->bSurpriseRemoved)
 			DBG_871X(FUNC_NDEV_FMT"waiting for scan_abort time out!\n", FUNC_NDEV_ARG(adapter->pnetdev));
-		#ifdef CONFIG_PLATFORM_MSTAR_TITANIA12	
+		#ifdef CONFIG_PLATFORM_MSTAR
 		//_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 		set_survey_timer(pmlmeext, 0);
 		_set_timer(&pmlmepriv->scan_to_timer, 50);
@@ -1617,7 +1667,10 @@ static struct sta_info *rtw_joinbss_update_stainfo(_adapter *padapter, struct wl
 			_rtw_memset((u8 *)&psta->dot11tkiprxmickey, 0, sizeof (union Keytype));
 			_rtw_memset((u8 *)&psta->dot11tkiptxmickey, 0, sizeof (union Keytype));
 						
-			_rtw_memset((u8 *)&psta->dot11txpn, 0, sizeof (union pn48));	
+			_rtw_memset((u8 *)&psta->dot11txpn, 0, sizeof (union pn48));
+#ifdef CONFIG_IEEE80211W
+			_rtw_memset((u8 *)&psta->dot11wtxpn, 0, sizeof (union pn48));
+#endif //CONFIG_IEEE80211W
 			_rtw_memset((u8 *)&psta->dot11rxpn, 0, sizeof (union pn48));	
 		}
 
@@ -1704,12 +1757,12 @@ static void rtw_joinbss_update_network(_adapter *padapter, struct wlan_network *
 	//the ptarget_wlan->network.Rssi is raw data, we use ptarget_wlan->network.PhyInfo.SignalStrength instead (has scaled)
 	padapter->recvpriv.rssi = translate_percentage_to_dbm(ptarget_wlan->network.PhyInfo.SignalStrength);
 	#if defined(DBG_RX_SIGNAL_DISPLAY_PROCESSING) && 1
-		DBG_871X("%s signal_strength:%3u, rssi:%3d, signal_qual:%3u"
+		DBG_871X(FUNC_ADPT_FMT" signal_strength:%3u, rssi:%3d, signal_qual:%3u"
 			"\n"
-			, __FUNCTION__
-			, adapter->recvpriv.signal_strength
-			, adapter->recvpriv.rssi
-			, adapter->recvpriv.signal_qual
+			, FUNC_ADPT_ARG(padapter)
+			, padapter->recvpriv.signal_strength
+			, padapter->recvpriv.rssi
+			, padapter->recvpriv.signal_qual
 	);
 	#endif
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
@@ -2023,7 +2076,7 @@ _func_enter_;
 					assoc_req_len = psta->assoc_req_len;
 					_rtw_memcpy(passoc_req, psta->passoc_req, assoc_req_len);
 					
-					_rtw_mfree(psta->passoc_req , psta->assoc_req_len);
+					rtw_mfree(psta->passoc_req , psta->assoc_req_len);
 					psta->passoc_req = NULL;
 					psta->assoc_req_len = 0;
 				}
@@ -2034,7 +2087,7 @@ _func_enter_;
 			{
 				rtw_cfg80211_indicate_sta_assoc(adapter, passoc_req, assoc_req_len);
 
-				_rtw_mfree(passoc_req, assoc_req_len);
+				rtw_mfree(passoc_req, assoc_req_len);
 			}
 #endif //(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)) || defined(CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER)
 #endif //CONFIG_IOCTL_CFG80211	
@@ -2330,6 +2383,12 @@ _func_enter_;
 	{
 		rtw_indicate_disconnect(adapter);
 		free_scanqueue(pmlmepriv);//???
+
+#ifdef CONFIG_IOCTL_CFG80211
+		//indicate disconnect for the case that join_timeout and check_fwstate != FW_LINKED
+		rtw_cfg80211_indicate_disconnect(adapter);
+#endif //CONFIG_IOCTL_CFG80211
+
  	}
 
 	_exit_critical_bh(&pmlmepriv->lock, &irqL);
@@ -2652,7 +2711,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 			#ifdef  CONFIG_LAYER2_ROAMING
 			"[to_roaming:%u] "
 			#endif
-			"new candidate: %s("MAC_FMT") rssi:%d\n",
+			"new candidate: %s("MAC_FMT", ch%u) rssi:%d\n",
 			pmlmepriv->assoc_by_bssid,
 			pmlmepriv->assoc_ssid.Ssid,
 			#ifdef  CONFIG_LAYER2_ROAMING
@@ -2660,6 +2719,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 			#endif
 			(*candidate)->network.Ssid.Ssid,
 			MAC_ARG((*candidate)->network.MacAddress),
+			(*candidate)->network.Configuration.DSConfig,
 			(int)(*candidate)->network.Rssi
 		);
 	}
@@ -3053,15 +3113,10 @@ _func_enter_;
 	}
 	psetkeyparm->keyid = (u8)keyid;//0~3
 	psetkeyparm->set_tx = set_tx;
-	pmlmepriv->key_mask |= BIT(psetkeyparm->keyid);
-#ifdef CONFIG_AUTOSUSPEND
-	if( _TRUE  == adapter->pwrctrlpriv.bInternalAutoSuspend)
-	{
-		adapter->pwrctrlpriv.wepkeymask = pmlmepriv->key_mask;
-		DBG_871X("....AutoSuspend pwrctrlpriv.wepkeymask(%x)\n",adapter->pwrctrlpriv.wepkeymask);
-	}
-#endif
-	DBG_871X("==> rtw_set_key algorithm(%x),keyid(%x),key_mask(%x)\n",psetkeyparm->algorithm,psetkeyparm->keyid,pmlmepriv->key_mask);
+	if (is_wep_enc(psetkeyparm->algorithm))
+		psecuritypriv->key_mask |= BIT(psetkeyparm->keyid);
+
+	DBG_871X("==> rtw_set_key algorithm(%x),keyid(%x),key_mask(%x)\n",psetkeyparm->algorithm,psetkeyparm->keyid, psecuritypriv->key_mask);
 	RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,("\n rtw_set_key: psetkeyparm->algorithm=%d psetkeyparm->keyid=(u8)keyid=%d \n",psetkeyparm->algorithm, keyid));
 
 	switch(psetkeyparm->algorithm){
@@ -3263,6 +3318,14 @@ _func_enter_;
 	{		
 		//copy RSN or SSN		
 		_rtw_memcpy(&out_ie[ielength], &psecuritypriv->supplicant_ie[0], psecuritypriv->supplicant_ie[1]+2);
+		/* debug for CONFIG_IEEE80211W
+		{
+			int jj;
+			printk("supplicant_ie_length=%d &&&&&&&&&&&&&&&&&&&\n", psecuritypriv->supplicant_ie[1]+2);
+			for(jj=0; jj < psecuritypriv->supplicant_ie[1]+2; jj++)
+				printk(" %02x ", psecuritypriv->supplicant_ie[jj]);
+			printk("\n");
+		}*/
 		ielength+=psecuritypriv->supplicant_ie[1]+2;
 		rtw_report_sec_ie(adapter, authmode, psecuritypriv->supplicant_ie);
 	
@@ -3567,11 +3630,12 @@ void rtw_update_ht_cap(_adapter *padapter, u8 *pie, uint ie_len, u8 channel)
 	//maybe needs check if ap supports rx ampdu.
 	if((phtpriv->ampdu_enable==_FALSE) &&(pregistrypriv->ampdu_enable==1))
 	{
-		if(pregistrypriv->wifi_spec==1)
+		//In the wifi cert. test, the test Lab should turn off the AP's RX AMPDU. client doen't need to close the TX AMPDU
+		/*if(pregistrypriv->wifi_spec==1)
 		{
 			phtpriv->ampdu_enable = _FALSE;
 		}
-		else
+		else*/
 		{
 			phtpriv->ampdu_enable = _TRUE;
 		}
@@ -3755,10 +3819,23 @@ void rtw_issue_addbareq_cmd(_adapter *padapter, struct xmit_frame *pxmitframe)
 	if (pattrib->psta)
 		psta = pattrib->psta;
 	else
+	{
+		DBG_871X("%s, call rtw_get_stainfo()\n", __func__);
 		psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
+	}	
 	
 	if(psta==NULL)
+	{
+		DBG_871X("%s, psta==NUL\n", __func__);
 		return;
+	}
+
+	if(!(psta->state &_FW_LINKED))
+	{
+		DBG_871X("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
+		return;
+	}	
+
 	
 	phtpriv = &psta->htpriv;
 

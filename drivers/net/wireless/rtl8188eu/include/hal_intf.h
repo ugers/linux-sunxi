@@ -65,6 +65,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_RESP_SIFS,
 	HW_VAR_ACK_PREAMBLE,
 	HW_VAR_SEC_CFG,
+	HW_VAR_SEC_DK_CFG,
 	HW_VAR_BCN_VALID,
 	HW_VAR_RF_TYPE,
 	HW_VAR_DM_FLAG,
@@ -622,8 +623,8 @@ c2h_id_filter rtw_hal_c2h_id_filter_ccx(_adapter *adapter);
 
 s32 rtw_hal_is_disable_sw_channel_plan(PADAPTER padapter);
 
-s32 rtw_hal_macid_sleep(PADAPTER padapter, u32 macid);
-s32 rtw_hal_macid_wakeup(PADAPTER padapter, u32 macid);
+s32 rtw_hal_macid_sleep(PADAPTER padapter, u8 macid);
+s32 rtw_hal_macid_wakeup(PADAPTER padapter, u8 macid);
 
 #ifdef CONFIG_BT_COEXIST
 s32 rtw_hal_fill_h2c_cmd(PADAPTER, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);

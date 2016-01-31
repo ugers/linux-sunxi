@@ -318,6 +318,16 @@ int proc_get_rx_info(struct seq_file *m, void *v)
 	return 0;
 }	
 
+int proc_get_wifi_spec(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	DBG_871X_SEL_NL(m,"wifi_spec=%d\n",pregpriv->wifi_spec);
+	return 0;
+}
+
 static int proc_get_cam(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -368,25 +378,29 @@ static int proc_get_cam_cache(struct seq_file *m, void *v)
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	u8 i;
 
-	DBG_871X_SEL_NL(m, "%-2s %-6s %-17s %-32s %-7s %-3s"
-		//" %-2s %-2s"
+	DBG_871X_SEL_NL(m, "cam bitmap:0x%016llx\n", dvobj->cam_ctl.bitmap);
+
+	DBG_871X_SEL_NL(m, "%-2s %-6s %-17s %-32s %-3s %-7s"
+		//" %-2s %-2s %-4s %-5s"
 		"\n"
-		, "id", "ctrl", "mac", "key", "type", "kid"
-		//, "DK", "GK"
+		, "id", "ctrl", "addr", "key", "kid", "type"
+		//, "MK", "GK", "MFB", "valid"
 	);
 
 	for (i=0;i<32;i++) {
 		if (dvobj->cam_cache[i].ctrl != 0)
-			DBG_871X_SEL_NL(m, "%2u 0x%04x "MAC_FMT" "KEY_FMT" %-7s %3u"
-				//" %2u %2u"
+			DBG_871X_SEL_NL(m, "%2u 0x%04x "MAC_FMT" "KEY_FMT" %3u %-7s"
+				//" %2u %2u 0x%02x %5u"
 				"\n", i
 				, dvobj->cam_cache[i].ctrl
 				, MAC_ARG(dvobj->cam_cache[i].mac)
 				, KEY_ARG(dvobj->cam_cache[i].key)
-				, security_type_str(((dvobj->cam_cache[i].ctrl)>>2)&0x07)
 				, (dvobj->cam_cache[i].ctrl)&0x03
+				, security_type_str(((dvobj->cam_cache[i].ctrl)>>2)&0x07)
 				//, ((dvobj->cam_cache[i].ctrl)>>5)&0x01
 				//, ((dvobj->cam_cache[i].ctrl)>>6)&0x01
+				//, ((dvobj->cam_cache[i].ctrl)>>8)&0x7f
+				//, ((dvobj->cam_cache[i].ctrl)>>15)&0x01
 			);
 	}
 
@@ -415,6 +429,7 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"cam_cache", proc_get_cam_cache, NULL},
 	{"suspend_info", proc_get_suspend_resume_info, NULL},
 	{"rx_info", proc_get_rx_info,NULL},
+	{"wifi_spec",proc_get_wifi_spec,NULL},
 
 #ifdef CONFIG_LAYER2_ROAMING
 	{"roam_flags", proc_get_roam_flags, proc_set_roam_flags},

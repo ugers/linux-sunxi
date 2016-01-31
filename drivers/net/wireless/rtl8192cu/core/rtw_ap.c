@@ -118,12 +118,16 @@ static void update_BCNTIM(_adapter *padapter)
 			dst_ie = p;
 		}
 		else
-		{		
+		{
 			tim_ielen = 0;
 
 			//calucate head_len		
 			offset = _FIXED_IE_LENGTH_;
-			offset += pnetwork_mlmeext->Ssid.SsidLength + 2;
+
+			/* get ssid_ie len */
+			p = rtw_get_ie(pie + _BEACON_IE_OFFSET_, _SSID_IE_, &tmp_len, (pnetwork_mlmeext->IELength - _BEACON_IE_OFFSET_));
+			if (p !=  NULL)
+				offset += tmp_len+2;
 
 			// get supported rates len
 			p = rtw_get_ie(pie + _BEACON_IE_OFFSET_, _SUPPORTEDRATES_IE_, &tmp_len, (pnetwork_mlmeext->IELength - _BEACON_IE_OFFSET_));	
@@ -152,8 +156,6 @@ static void update_BCNTIM(_adapter *padapter)
 				_rtw_memcpy(pbackup_remainder_ie, premainder_ie, remainder_ielen);
 		}		
 
-
-		
 		*dst_ie++=_TIM_IE_;
 
 		if((pstapriv->tim_bitmap&0xff00) && (pstapriv->tim_bitmap&0x00fc))			
@@ -291,6 +293,9 @@ void rtw_remove_bcn_ie(_adapter *padapter, WLAN_BSSID_EX *pnetwork, u8 index)
 		remainder_ielen = pnetwork->IELength - ie_offset - ielen;
 
 		dst_ie = p;
+	}
+	else {
+		return;
 	}
 
 	if(remainder_ielen>0)
@@ -498,7 +503,7 @@ void	expire_timeout_chk(_adapter *padapter)
 			pstapriv->asoc_list_cnt--;
 
 			DBG_871X("asoc expire "MAC_FMT", state=0x%x\n", MAC_ARG(psta->hwaddr), psta->state);
-			updated = ap_free_sta(padapter, psta, _TRUE, WLAN_REASON_DEAUTH_LEAVING);
+			updated = ap_free_sta(padapter, psta, _FALSE, WLAN_REASON_DEAUTH_LEAVING);
 		}	
 		else
 		{
@@ -533,6 +538,8 @@ if (chk_alive_num) {
 		int ret = _FAIL;
 
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
+		if(!(psta->state &_FW_LINKED))
+			continue;		
 
 		if (psta->state & WIFI_SLEEP_STATE)
 			ret = issue_nulldata(padapter, psta->hwaddr, 0, 1, 50);
@@ -558,9 +565,11 @@ if (chk_alive_num) {
 
 		DBG_871X("asoc expire "MAC_FMT", state=0x%x\n", MAC_ARG(psta->hwaddr), psta->state);
 		_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
-		rtw_list_delete(&psta->asoc_list);
-		pstapriv->asoc_list_cnt--;
-		updated = ap_free_sta(padapter, psta, _TRUE, WLAN_REASON_DEAUTH_LEAVING);
+		if (rtw_is_list_empty(&psta->asoc_list)==_FALSE) {
+			rtw_list_delete(&psta->asoc_list);
+			pstapriv->asoc_list_cnt--;
+			updated = ap_free_sta(padapter, psta, _FALSE, WLAN_REASON_DEAUTH_LEAVING);
+		}
 		_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
 
 	}
@@ -2545,17 +2554,23 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 	if(!psta)
 		return beacon_updated;
 
-
-	//tear down Rx AMPDU
-	send_delba(padapter, 0, psta->hwaddr);// recipient
+	if (active == _TRUE)
+	{
+#ifdef CONFIG_80211N_HT
+		//tear down Rx AMPDU
+		send_delba(padapter, 0, psta->hwaddr);// recipient
 	
-	//tear down TX AMPDU
-	send_delba(padapter, 1, psta->hwaddr);// // originator
+		//tear down TX AMPDU
+		send_delba(padapter, 1, psta->hwaddr);// // originator
+		
+#endif //CONFIG_80211N_HT
+
+		issue_deauth(padapter, psta->hwaddr, reason);
+	}
+
 	psta->htpriv.agg_enable_bitmap = 0x0;//reset
 	psta->htpriv.candidate_tid_bitmap = 0x0;//reset
 
-	if (active == _TRUE)
-		issue_deauth(padapter, psta->hwaddr, reason);
 
 	//report_del_sta_event(padapter, psta->hwaddr, reason);
 
@@ -2643,33 +2658,43 @@ int rtw_sta_flush(_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	u8 chk_alive_num = 0;
+	char chk_alive_list[NUM_STA];
+	int i;
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
 
 	if((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
 		return ret;
 
-
 	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
-	
-	//free sta asoc_queue
-	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE)	
-	{		
-		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+
+	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+		int stainfo_offset;
 		
+		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
 		plist = get_next(plist);
 
+		/* Remove sta from asoc_list */
 		rtw_list_delete(&psta->asoc_list);
 		pstapriv->asoc_list_cnt--;
 
-		//_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
-		ap_free_sta(padapter, psta, _TRUE, WLAN_REASON_DEAUTH_LEAVING);
-		//_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+		/* Keep sta for ap_free_sta() beyond this asoc_list loop */
+		stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
+		if (stainfo_offset_valid(stainfo_offset)) {
+			chk_alive_list[chk_alive_num++] = stainfo_offset;
+		}
 	}
 	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
 
+
+	/* For each sta in chk_alive_list, call ap_free_sta */
+	for (i = 0; i < chk_alive_num; i++) {
+		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
+		ap_free_sta(padapter, psta, _TRUE, WLAN_REASON_DEAUTH_LEAVING);
+	}
 
 	issue_deauth(padapter, bc_addr, WLAN_REASON_DEAUTH_LEAVING);
 
@@ -2726,6 +2751,73 @@ void ap_sta_info_defer_update(_adapter *padapter, struct sta_info *psta)
 		//add ratid
 		add_RATid(padapter, psta);
 	}	
+}
+
+/* restore hw setting from sw data structures */
+void rtw_ap_restore_network(_adapter *padapter)
+{
+	struct mlme_priv *mlmepriv = &padapter->mlmepriv;
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct sta_priv * pstapriv = &padapter->stapriv;
+	struct sta_info *psta;
+	struct security_priv* psecuritypriv=&(padapter->securitypriv);
+	_irqL irqL;
+	_list	*phead, *plist;
+	u8 chk_alive_num = 0;
+	char chk_alive_list[NUM_STA];
+	int i;
+
+	rtw_setopmode_cmd(padapter, Ndis802_11APMode);
+
+	set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
+
+	start_bss_network(padapter, (u8*)&mlmepriv->cur_network.network);
+
+	if((padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
+		(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_))
+	{
+		/* restore group key, WEP keys is restored in ips_leave() */
+		rtw_set_key(padapter, psecuritypriv, psecuritypriv->dot118021XGrpKeyid, 0);
+	}
+
+	/* per sta pairwise key and settings */
+	if((padapter->securitypriv.dot11PrivacyAlgrthm != _TKIP_) &&
+		(padapter->securitypriv.dot11PrivacyAlgrthm != _AES_)) {
+		return;
+	}
+
+	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	
+	phead = &pstapriv->asoc_list;
+	plist = get_next(phead);
+
+	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+		int stainfo_offset;
+
+		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		plist = get_next(plist);
+
+		stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
+		if (stainfo_offset_valid(stainfo_offset)) {
+			chk_alive_list[chk_alive_num++] = stainfo_offset;
+		}
+	}
+
+	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+
+	for (i = 0; i < chk_alive_num; i++) {
+		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
+
+		if (psta == NULL) {
+			DBG_871X(FUNC_ADPT_FMT" sta_info is null\n", FUNC_ADPT_ARG(padapter));
+		} else if (psta->state &_FW_LINKED) {
+			Update_RA_Entry(padapter, psta->mac_id);
+			//pairwise key
+			rtw_setstakey_cmd(padapter, (unsigned char *)psta, _TRUE);
+		}
+	}
+
 }
 
 void start_ap_mode(_adapter *padapter)

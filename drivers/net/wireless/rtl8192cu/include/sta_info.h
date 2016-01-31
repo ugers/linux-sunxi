@@ -119,6 +119,9 @@ struct sta_info {
 	union Keytype	dot11tkiprxmickey;
 	union Keytype	dot118021x_UncstKey;	
 	union pn48		dot11txpn;			// PN48 used for Unicast xmit.
+#ifdef CONFIG_IEEE80211W
+	union pn48		dot11wtxpn;			// PN48 used for Unicast mgmt xmit.
+#endif //CONFIG_IEEE80211W
 	union pn48		dot11rxpn;			// PN48 used for Unicast recv.
 
 

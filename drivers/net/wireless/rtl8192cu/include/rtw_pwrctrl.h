@@ -253,7 +253,6 @@ struct pwrctrl_priv
 	//rt_rf_power_state 	current_rfpwrstate;
 	rt_rf_power_state	change_rfpwrstate;
 
-	u8		wepkeymask;
 	u8		bHWPowerdown;//if support hw power down
 	u8		bHWPwrPindetect;
 	u8		bkeepfwalive;		
@@ -313,7 +312,9 @@ extern void rtw_set_ps_mode(_adapter * padapter, u8 ps_mode, u8 smart_ps);
 extern void rtw_set_rpwm(_adapter * padapter, u8 val8);
 extern void LeaveAllPowerSaveMode(PADAPTER Adapter);
 #ifdef CONFIG_IPS
+void _ips_enter(_adapter * padapter);
 void ips_enter(_adapter * padapter);
+int _ips_leave(_adapter * padapter);
 int ips_leave(_adapter * padapter);
 #endif
 

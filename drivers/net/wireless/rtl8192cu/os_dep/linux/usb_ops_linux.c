@@ -27,7 +27,7 @@ static void _usbctrl_vendorreq_async_callback(struct urb *urb, struct pt_regs *r
 {
 	if (urb) {
 		if (urb->context) {
-			kfree(urb->context);
+			rtw_mfree(urb->context);
 		}
 		usb_free_urb(urb);
 	}
@@ -443,9 +443,11 @@ _func_enter_;
 	#endif
 
 check_completion:
+	_enter_critical(&pxmitpriv->lock_sctx, &irqL);
 	rtw_sctx_done_err(&pxmitbuf->sctx,
 		purb->status ? RTW_SCTX_DONE_WRITE_PORT_ERR : RTW_SCTX_DONE_SUCCESS);
-	
+	_exit_critical(&pxmitpriv->lock_sctx, &irqL);
+
 	rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 
 	//if(rtw_txframes_pending(padapter))	

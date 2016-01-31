@@ -177,6 +177,7 @@ _func_enter_;
 			rtw_mfree(c2h, 16);
 		}
 	}
+	rtw_cbuf_free(pevtpriv->c2h_queue);
 #endif
 
 	RT_TRACE(_module_rtl871x_cmd_c_,_drv_info_,("-_rtw_free_evt_priv \n"));
@@ -421,6 +422,17 @@ _func_enter_;
 _func_exit_;		
 }
 
+void rtw_stop_cmd_thread(_adapter *adapter)
+{
+	if(adapter->cmdThread && adapter->cmdpriv.cmdthd_running == _TRUE
+		&& adapter->cmdpriv.stop_req == 0)
+	{
+		adapter->cmdpriv.stop_req = 1;
+		_rtw_up_sema(&adapter->cmdpriv.cmd_queue_sema);
+		_rtw_down_sema(&adapter->cmdpriv.terminate_cmdthread_sema);
+	}
+}
+
 thread_return rtw_cmd_thread(thread_context context)
 {
 	u8 ret;
@@ -438,6 +450,7 @@ _func_enter_;
 	pcmdbuf = pcmdpriv->cmd_buf;
 	prspbuf = pcmdpriv->rsp_buf;
 
+	pcmdpriv->stop_req = 0;
 	pcmdpriv->cmdthd_running=_TRUE;
 	_rtw_up_sema(&pcmdpriv->terminate_cmdthread_sema);
 	
@@ -445,8 +458,15 @@ _func_enter_;
 
 	while(1)
 	{
-		if ((_rtw_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
+		if ((_rtw_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL) {
+			LOG_LEVEL(_drv_err_, FUNC_ADPT_FMT" _rtw_down_sema(&pcmdpriv->cmd_queue_sema) return _FAIL, break\n", FUNC_ADPT_ARG(padapter));
 			break;
+		}
+
+		if (pcmdpriv->stop_req) {
+			LOG_LEVEL(_drv_err_, FUNC_ADPT_FMT" stop_req:%u, break\n", FUNC_ADPT_ARG(padapter), pcmdpriv->stop_req);
+			break;
+		}
 
 #ifdef CONFIG_LPS_LCLK
 		if (rtw_register_cmd_alive(padapter) != _SUCCESS)
@@ -456,10 +476,10 @@ _func_enter_;
 #endif
 
 _next:
-		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
+		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved == _TRUE))
 		{
-			DBG_871X("###> rtw_cmd_thread break.................\n");
-			RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("rtw_cmd_thread:bDriverStopped(%d) OR bSurpriseRemoved(%d)", padapter->bDriverStopped, padapter->bSurpriseRemoved));		
+			LOG_LEVEL(_drv_err_, "%s: DriverStopped(%d) SurpriseRemoved(%d) break at line %d\n",
+				__FUNCTION__, padapter->bDriverStopped, padapter->bSurpriseRemoved, __LINE__);
 			break;
 		}
 
@@ -752,10 +772,14 @@ _func_enter_;
 		pmlmepriv->scan_start_time = rtw_get_current_time();
 
 #ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+		if (padapter->pbuddy_adapter == NULL )
+			goto full_scan_timeout;
 		if((padapter->pbuddy_adapter->mlmeextpriv.mlmext_info.state&0x03) == WIFI_FW_AP_STATE)
-			_set_timer(&pmlmepriv->scan_to_timer, SURVEY_TO * ( 38 + ( 38 / RTW_SCAN_NUM_OF_CH ) * RTW_STAY_AP_CH_MILLISECOND ) + 1000 );
+			_set_timer(&pmlmepriv->scan_to_timer, 
+				SURVEY_TO * ( padapter->mlmeextpriv.max_chan_nums + ( padapter->mlmeextpriv.max_chan_nums  / RTW_SCAN_NUM_OF_CH ) * RTW_STAY_AP_CH_MILLISECOND ) + 1000 );
 		else
 #endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+full_scan_timeout:
 			_set_timer(&pmlmepriv->scan_to_timer, SCANNING_TIMEOUT);
 
 		rtw_led_control(padapter, LED_CTL_SITE_SURVEY);
@@ -1695,6 +1719,87 @@ _func_exit_;
 
 	return res;
 }
+//add for CONFIG_IEEE80211W, none 11w can use it
+u8 rtw_reset_securitypriv_cmd(_adapter*padapter)
+{
+	struct cmd_obj*		ph2c;
+	struct drvextra_cmd_parm  *pdrvextra_cmd_parm;	
+	struct cmd_priv	*pcmdpriv=&padapter->cmdpriv;
+	u8	res=_SUCCESS;
+	
+_func_enter_;	
+
+	ph2c = (struct cmd_obj*)rtw_zmalloc(sizeof(struct cmd_obj));	
+	if(ph2c==NULL){
+		res= _FAIL;
+		goto exit;
+	}
+	
+	pdrvextra_cmd_parm = (struct drvextra_cmd_parm*)rtw_zmalloc(sizeof(struct drvextra_cmd_parm)); 
+	if(pdrvextra_cmd_parm==NULL){
+		rtw_mfree((unsigned char *)ph2c, sizeof(struct cmd_obj));
+		res= _FAIL;
+		goto exit;
+	}
+
+	pdrvextra_cmd_parm->ec_id = RESET_SECURITYPRIV;
+	pdrvextra_cmd_parm->type_size = 0;
+	pdrvextra_cmd_parm->pbuf = (u8 *)padapter;
+
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+
+	
+	//rtw_enqueue_cmd(pcmdpriv, ph2c);	
+	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
+	
+exit:
+	
+_func_exit_;
+
+	return res;
+
+}
+
+u8 rtw_free_assoc_resources_cmd(_adapter*padapter)
+{
+	struct cmd_obj*		ph2c;
+	struct drvextra_cmd_parm  *pdrvextra_cmd_parm;	
+	struct cmd_priv	*pcmdpriv=&padapter->cmdpriv;
+	u8	res=_SUCCESS;
+	
+_func_enter_;	
+
+	ph2c = (struct cmd_obj*)rtw_zmalloc(sizeof(struct cmd_obj));	
+	if(ph2c==NULL){
+		res= _FAIL;
+		goto exit;
+	}
+	
+	pdrvextra_cmd_parm = (struct drvextra_cmd_parm*)rtw_zmalloc(sizeof(struct drvextra_cmd_parm)); 
+	if(pdrvextra_cmd_parm==NULL){
+		rtw_mfree((unsigned char *)ph2c, sizeof(struct cmd_obj));
+		res= _FAIL;
+		goto exit;
+	}
+
+	pdrvextra_cmd_parm->ec_id = FREE_ASSOC_RESOURCES;
+	pdrvextra_cmd_parm->type_size = 0;
+	pdrvextra_cmd_parm->pbuf = (u8 *)padapter;
+
+	init_h2fwcmd_w_parm_no_rsp(ph2c, pdrvextra_cmd_parm, GEN_CMD_CODE(_Set_Drv_Extra));
+
+	
+	//rtw_enqueue_cmd(pcmdpriv, ph2c);	
+	res = rtw_enqueue_cmd(pcmdpriv, ph2c);
+	
+exit:
+	
+_func_exit_;
+
+	return res;
+
+}
+
 
 u8 rtw_dynamic_chk_wk_cmd(_adapter*padapter)
 {
@@ -1984,12 +2089,15 @@ static void traffic_status_watchdog(_adapter *padapter)
 #ifdef CONFIG_LPS
 	u8	bEnterPS;
 #endif
+	u16	BusyThreshold = 100;
 	u8	bBusyTraffic = _FALSE, bTxBusyTraffic = _FALSE, bRxBusyTraffic = _FALSE;
 	u8	bHigherBusyTraffic = _FALSE, bHigherBusyRxTraffic = _FALSE, bHigherBusyTxTraffic = _FALSE;
 	struct mlme_priv		*pmlmepriv = &(padapter->mlmepriv);
 #ifdef CONFIG_TDLS
 	struct tdls_info *ptdlsinfo = &(padapter->tdlsinfo);
 #endif //CONFIG_TDLS
+
+	RT_LINK_DETECT_T * link_detect = &pmlmepriv->LinkDetectInfo;
 
 	//
 	// Determine if our traffic is busy now
@@ -1998,15 +2106,18 @@ static void traffic_status_watchdog(_adapter *padapter)
 		/*&& !MgntInitAdapterInProgress(pMgntInfo)*/)
 	{
 
-		if( pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 100 ||
-			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 100 )
+		// if we raise bBusyTraffic in last watchdog, using lower threshold.
+		if (pmlmepriv->LinkDetectInfo.bBusyTraffic)
+			BusyThreshold = 75;
+		if( pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > BusyThreshold ||
+			pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold )
 		{
 			bBusyTraffic = _TRUE;
 
-			if(pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 100)
+			if(pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > BusyThreshold)
 				bRxBusyTraffic = _TRUE;
 
-			if(pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 100)
+			if(pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold)
 				bTxBusyTraffic = _TRUE;
 		}
 
@@ -2024,7 +2135,25 @@ static void traffic_status_watchdog(_adapter *padapter)
 			if(pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 5000)
 				bHigherBusyTxTraffic = _TRUE;
 		}
-		
+
+#ifdef CONFIG_TRAFFIC_PROTECT
+#define TX_ACTIVE_TH 2
+#define RX_ACTIVE_TH 1
+#define TRAFFIC_PROTECT_PERIOD_MS 4500
+
+	if (link_detect->NumTxOkInPeriod > TX_ACTIVE_TH
+		|| link_detect->NumRxUnicastOkInPeriod > RX_ACTIVE_TH) {
+
+		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT" acqiure wake_lock for %u ms(tx:%d,rx_unicast:%d)\n",
+			FUNC_ADPT_ARG(padapter),
+			TRAFFIC_PROTECT_PERIOD_MS,
+			link_detect->NumTxOkInPeriod,
+			link_detect->NumRxUnicastOkInPeriod);
+
+		rtw_lock_suspend_timeout(TRAFFIC_PROTECT_PERIOD_MS);
+	}
+#endif
+
 #ifdef CONFIG_TDLS
 #ifdef CONFIG_TDLS_AUTOSETUP
 		if( ( ptdlsinfo->watchdog_count % TDLS_WATCHDOG_PERIOD ) == 0 )	//TDLS_WATCHDOG_PERIOD * 2sec, periodically sending
@@ -2284,6 +2413,17 @@ void power_saving_wk_hdl(_adapter *padapter, u8 *pbuf, int sz);
 void power_saving_wk_hdl(_adapter *padapter, u8 *pbuf, int sz)
 {
 	 rtw_ps_processor(padapter);
+}
+
+//add for CONFIG_IEEE80211W, none 11w can use it
+void reset_securitypriv_hdl(_adapter *padapter)
+{
+	 rtw_reset_securitypriv(padapter);
+}
+
+void free_assoc_resources_hdl(_adapter *padapter)
+{
+	 rtw_free_assoc_resources(padapter, 1);
 }
 
 #ifdef CONFIG_P2P
@@ -2593,7 +2733,13 @@ u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf)
 			intel_widi_wk_hdl(padapter, pdrvextra_cmd->type_size, pdrvextra_cmd->pbuf);
 			break;
 #endif //CONFIG_INTEL_WIDI
-
+		//add for CONFIG_IEEE80211W, none 11w can use it
+		case RESET_SECURITYPRIV:
+			reset_securitypriv_hdl(padapter);
+			break;
+		case FREE_ASSOC_RESOURCES:
+			free_assoc_resources_hdl(padapter);
+			break;
 		case C2H_WK_CID:
 			c2h_evt_hdl(padapter, (struct c2h_evt_hdr *)pdrvextra_cmd->pbuf, NULL);
 			break;

@@ -34,8 +34,10 @@
 
 #elif defined (CONFIG_USB_HCI)
 #ifdef CONFIG_USB_TX_AGGREGATION
-	#ifdef CONFIG_PLATFORM_ARM_SUNxI
+	#if defined(CONFIG_PLATFORM_ARM_SUNxI) || defined(CONFIG_PLATFORM_ARM_SUN6I)
 		#define MAX_XMITBUF_SZ (12288)  //12k 1536*8
+	#elif defined (CONFIG_PLATFORM_MSTAR)
+		#define MAX_XMITBUF_SZ	7680	// 7.5k
 	#else
 		#define MAX_XMITBUF_SZ	(20480)	// 20k
 	#endif
@@ -358,6 +360,9 @@ struct pkt_attrib
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
 	u8	hw_tcp_csum;
 #endif
+	union Keytype	dot11tkiptxmickey;
+	//union Keytype	dot11tkiprxmickey;
+	union Keytype	dot118021x_UncstKey;
 };
 #endif
 
@@ -522,6 +527,9 @@ struct xmit_frame
 	u8 ack_report;
 #endif
 
+	u8 *alloc_addr; /* the actual address this xmitframe allocated */
+	u8 ext_tag; /* 0:data, 1:mgmt */
+
 };
 
 struct tx_servq {
@@ -588,11 +596,15 @@ struct	xmit_priv	{
 	u8 *pallocated_frame_buf;
 	u8 *pxmit_frame_buf;
 	uint free_xmitframe_cnt;
+	_queue	free_xmit_queue;
 
 	//uint mapping_addr;
 	//uint pkt_sz;
 
-	_queue	free_xmit_queue;
+	u8 *xframe_ext_alloc_addr;
+	u8 *xframe_ext;
+	uint free_xframe_ext_cnt;
+	_queue free_xframe_ext_queue;
 
 	//struct	hw_txqueue	be_txqueue;
 	//struct	hw_txqueue	bk_txqueue;
@@ -667,7 +679,7 @@ struct	xmit_priv	{
 	_mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
 #endif
-	
+	_lock lock_sctx;
 };
 
 extern struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv);
@@ -682,6 +694,8 @@ extern s32 rtw_make_wlanhdr(_adapter *padapter, u8 *hdr, struct pkt_attrib *patt
 extern s32 rtw_put_snap(u8 *data, u16 h_proto);
 
 extern struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv);
+struct xmit_frame *rtw_alloc_xmitframe_ext(struct xmit_priv *pxmitpriv);
+struct xmit_frame *rtw_alloc_xmitframe_once(struct xmit_priv *pxmitpriv);
 extern s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe);
 extern void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, _queue *pframequeue);
 struct tx_servq *rtw_get_sta_pending(_adapter *padapter, struct sta_info *psta, sint up, u8 *ac);
@@ -693,6 +707,9 @@ extern thread_return rtw_xmit_thread(thread_context context);
 extern u32 rtw_calculate_wlan_pkt_size_by_attribue(struct pkt_attrib *pattrib);
 #define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue(&f->attrib)
 extern s32 rtw_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
+#ifdef CONFIG_IEEE80211W
+extern s32 rtw_mgmt_xmitframe_coalesce(_adapter *padapter, _pkt *pkt, struct xmit_frame *pxmitframe);
+#endif //CONFIG_IEEE80211W
 #ifdef CONFIG_TDLS
 s32 rtw_xmit_tdls_coalesce(_adapter *padapter, struct xmit_frame *pxmitframe, u8 action);
 #endif //CONFIG_TDLS

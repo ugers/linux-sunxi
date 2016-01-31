@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
  *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -17,41 +17,14 @@
  *
  *
  ******************************************************************************/
- 
-#ifndef	__ODM_REGDEFINE11AC_H__
-#define __ODM_REGDEFINE11AC_H__
 
-//2 RF REG LIST
+ #ifndef	__DM_H__
+#define __DM_H__
 
+int dm_adaptivity_get_parm_str(_adapter *pAdapter, char *buf, int len);
+void dm_adaptivity_set_parm(_adapter *pAdapter, s8 TH_L2H_ini, s8 TH_EDCCA_HL_diff,
+	s8 IGI_Base, bool ForceEDCCA, u8 AdapEn_RSSI, u8 IGI_LowerBound);
+void dm_adaptivity_init(_adapter *pAdapter);
+void dm_adaptivity(_adapter *pAdapter);
 
-
-//2 BB REG LIST
-//PAGE 8
-#define	ODM_REG_CCK_RPT_FORMAT_11AC	0x804
-#define	ODM_REG_BB_RX_PATH_11AC			0x808
-//PAGE 9
-#define	ODM_REG_OFDM_FA_RST_11AC		0x9A4
-//PAGE A
-#define	ODM_REG_CCK_CCA_11AC			0xA0A
-#define	ODM_REG_CCK_FA_RST_11AC			0xA2C
-#define	ODM_REG_CCK_FA_11AC				0xA5C
-//PAGE C
-#define	ODM_REG_IGI_A_11AC				0xC50
-//PAGE E
-#define	ODM_REG_IGI_B_11AC				0xE50
-//PAGE F
-#define	ODM_REG_OFDM_FA_11AC			0xF48
-
-
-//2 MAC REG LIST
-#define	ODM_REG_RESP_TX_11AC				0x6D8
-
-
-
-//DIG Related
-#define	ODM_BIT_IGI_11AC					0xFFFFFFFF
-#define	ODM_BIT_CCK_RPT_FORMAT_11AC		BIT16
-#define	ODM_BIT_BB_RX_PATH_11AC			0xF
-
-#endif
-
+#endif /* __DM_H__ */

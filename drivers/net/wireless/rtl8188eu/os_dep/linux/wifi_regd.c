@@ -420,7 +420,7 @@ static void _rtw_reg_apply_world_flags(struct wiphy *wiphy,
 	return;
 }
 
-static int _rtw_reg_notifier_apply(struct wiphy *wiphy,
+static void _rtw_reg_notifier_apply(struct wiphy *wiphy,
 				   struct regulatory_request *request,
 				   struct rtw_regulatory *reg)
 {
@@ -456,7 +456,7 @@ static int _rtw_reg_notifier_apply(struct wiphy *wiphy,
 		break;
 	}
 
-	return 0;
+	return;
 }
 
 static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
@@ -476,7 +476,7 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 
 static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 				struct wiphy *wiphy,
-				int (*reg_notifier) (struct wiphy * wiphy,
+				void (*reg_notifier) (struct wiphy * wiphy,
 						     struct regulatory_request *
 						     request))
 {
@@ -510,7 +510,7 @@ static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
 }
 
 int rtw_regd_init(_adapter * padapter,
-		  int (*reg_notifier) (struct wiphy * wiphy,
+		  void (*reg_notifier) (struct wiphy * wiphy,
 				       struct regulatory_request * request))
 {
 	//struct registry_priv  *registrypriv = &padapter->registrypriv;
@@ -536,12 +536,13 @@ int rtw_regd_init(_adapter * padapter,
 	return 0;
 }
 
-int rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct rtw_regulatory *reg = NULL;
 
 	DBG_8192C("%s\n", __func__);
 
-	return _rtw_reg_notifier_apply(wiphy, request, reg);
+	_rtw_reg_notifier_apply(wiphy, request, reg);
+	return; 
 }
 #endif //CONFIG_IOCTL_CFG80211

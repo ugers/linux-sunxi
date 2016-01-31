@@ -309,10 +309,10 @@ typedef enum _USB_RX_AGG_MODE{
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER	0xF5
 #define WMM_NORMAL_TX_PAGE_BOUNDARY	(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
 
-#define WMM_NORMAL_PAGE_NUM_PUBQ		0xB0
-#define WMM_NORMAL_PAGE_NUM_HPQ		0x29
-#define WMM_NORMAL_PAGE_NUM_LPQ			0x1C
-#define WMM_NORMAL_PAGE_NUM_NPQ		0x1C
+#define WMM_NORMAL_PAGE_NUM_PUBQ		0x65
+#define WMM_NORMAL_PAGE_NUM_HPQ		0x30
+#define WMM_NORMAL_PAGE_NUM_LPQ			0x30
+#define WMM_NORMAL_PAGE_NUM_NPQ		0x30
 
 //-------------------------------------------------------------------------
 //	Chip specific

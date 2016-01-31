@@ -1282,18 +1282,10 @@ void start_bss_network(_adapter *padapter, u8 *pbuf)
 	acparm = 0x002F3217; // VO
 #endif
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acparm));
-#ifdef CONFIG_DBG_AP_ACPARAM
-	acparm = 0x006E3215; // VI	
-#else
 	acparm = 0x005E4317; // VI
-#endif
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VI, (u8 *)(&acparm));
-#ifdef CONFIG_DBG_AP_ACPARAM
-	acparm = 0x0000a42b;//disable txop
-#else
 	//acparm = 0x00105320; // BE
 	acparm = 0x005ea42b;
-#endif
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_BE, (u8 *)(&acparm));
 	acparm = 0x0000A444; // BK
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_BK, (u8 *)(&acparm));
@@ -1728,7 +1720,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	if(p && ie_len>0)
 	{
 		u8 rf_type=0;
-		u8 max_rx_ampdu_factor=0;
+		u32 max_rx_ampdu_factor=0;
 		struct rtw_ieee80211_ht_cap *pht_cap = (struct rtw_ieee80211_ht_cap *)(p+2);
 
 		pHT_caps_ie=p;
@@ -2894,7 +2886,7 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 	//report_del_sta_event(padapter, psta->hwaddr, reason);
 
 	//clear cam entry / key
-	rtw_clearstakey_cmd(padapter, (u8*)psta, (u8)rtw_get_camid(psta->mac_id), _TRUE);
+	rtw_clearstakey_cmd(padapter, psta, _TRUE);
 
 
 	_enter_critical_bh(&psta->lock, &irqL);
@@ -3133,13 +3125,14 @@ void rtw_ap_restore_network(_adapter *padapter)
 		if (psta == NULL) {
 			DBG_871X(FUNC_ADPT_FMT" sta_info is null\n", FUNC_ADPT_ARG(padapter));
 		} else if (psta->state &_FW_LINKED) {
+			rtw_sta_media_status_rpt(padapter, psta, 1);
 			Update_RA_Entry(padapter, psta);
 			//pairwise key
 			/* per sta pairwise key and settings */
 			if(	(padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
 				(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_))
 			{
-				rtw_setstakey_cmd(padapter, (unsigned char *)psta, _TRUE,_FALSE);
+				rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
 			}			
 		}
 	}

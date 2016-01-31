@@ -71,6 +71,7 @@
 		u32	cmd_done_cnt;
 		u32	rsp_cnt;
 		u8 cmdthd_running;
+		u8 stop_req;
 		_adapter *padapter;
 	};
 
@@ -148,6 +149,7 @@ extern struct evt_obj *rtw_dequeue_evt(_queue *queue);
 extern void rtw_free_evt_obj(struct evt_obj *pcmd);
 #endif
 
+void rtw_stop_cmd_thread(_adapter *adapter);
 thread_return rtw_cmd_thread(thread_context context);
 
 extern u32 rtw_init_cmd_priv (struct cmd_priv *pcmdpriv);
@@ -179,6 +181,8 @@ enum rtw_drvextra_cmd_id
 	CHECK_HIQ_WK_CID,//for softap mode, check hi queue if empty
 	INTEl_WIDI_WK_CID,
 	C2H_WK_CID,
+	RESET_SECURITYPRIV, // add for CONFIG_IEEE80211W, none 11w also can use
+	FREE_ASSOC_RESOURCES, // add for CONFIG_IEEE80211W, none 11w also can use
 	MAX_WK_CID
 };
 
@@ -956,7 +960,9 @@ extern u8 rtw_setfwdig_cmd(_adapter*padapter, u8 type);
 extern u8 rtw_setfwra_cmd(_adapter*padapter, u8 type);
 
 extern u8 rtw_addbareq_cmd(_adapter*padapter, u8 tid, u8 *addr);
-
+// add for CONFIG_IEEE80211W, none 11w also can use
+extern u8 rtw_reset_securitypriv_cmd(_adapter*padapter);
+extern u8 rtw_free_assoc_resources_cmd(_adapter *padapter);
 extern u8 rtw_dynamic_chk_wk_cmd(_adapter *adapter);
 
 u8 rtw_lps_ctrl_wk_cmd(_adapter*padapter, u8 lps_ctrl_type, u8 enqueue);
