@@ -4784,10 +4784,10 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy,
 	unsigned int wait,
 #endif
 	const u8 *buf, size_t len,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
 	bool no_cck,
 #endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0))
 	bool dont_wait_for_ack,
 	#endif
 #else
