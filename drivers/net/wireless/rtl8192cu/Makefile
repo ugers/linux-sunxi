@@ -550,7 +550,7 @@ endif
 
 ARCH := arm
 CROSS_COMPILE := arm-none-linux-gnueabi-
-KVER  := 3.0.8
+#KVER  := 3.0.8
 #KSRC:= ../lichee/linux-3.0/
 endif
 

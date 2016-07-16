@@ -303,16 +303,6 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"75 Microseconds",
 		NULL,
 	};
-
-	/* Add camera flash light by raymonxiu */
-	static const char *flash_mode[] = {
-		"Off",
-		"Auto",
-		"On",
-		"Torch",
-		"Red-Eye",
-		NULL
-
 	static const char * const header_mode[] = {
 		"Separate Buffer",
 		"Joined With 1st Frame",
@@ -435,7 +425,16 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Gray",
 		NULL,
 	};
-
+	/* Add camera flash light by raymonxiu */
+	static const char *flash_mode[] = {
+		"Off",
+		"Auto",
+		"On",
+		"Torch",
+		"Red-Eye",
+		NULL
+	};
+	
 	switch (id) {
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 		return mpeg_audio_sampling_freq;
@@ -488,9 +487,6 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return scene_mode;
 	case V4L2_CID_TUNE_PREEMPHASIS:
 		return tune_preemphasis;
-	/* Add camera flash light by raymonxiu */
-	case V4L2_CID_CAMERA_FLASH_MODE:
-		return flash_mode;
 	case V4L2_CID_FLASH_LED_MODE:
 		return flash_led_mode;
 	case V4L2_CID_FLASH_STROBE_SOURCE:
@@ -515,7 +511,9 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return mpeg4_profile;
 	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
 		return jpeg_chroma_subsampling;
-
+	/* Add camera flash light by raymonxiu */
+	case V4L2_CID_CAMERA_FLASH_MODE:
+		return flash_mode;
 	default:
 		return NULL;
 	}
@@ -567,12 +565,12 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_CHROMA_GAIN:		return "Chroma Gain";
 	case V4L2_CID_ILLUMINATORS_1:		return "Illuminator 1";
 	case V4L2_CID_ILLUMINATORS_2:		return "Illuminator 2";
-	/* Add camera flash light by raymonxiu */
-	case V4L2_CID_CAMERA_FLASH_MODE:    return "FlashLight Mode";
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:	return "Min Number of Capture Buffers";
 	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Min Number of Output Buffers";
 	case V4L2_CID_ALPHA_COMPONENT:		return "Alpha Component";
 	case V4L2_CID_COLORFX_CBCR:		return "Color Effects, CbCr";
+	/* Add camera flash light by raymonxiu */
+	case V4L2_CID_CAMERA_FLASH_MODE:    return "FlashLight Mode";
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -834,6 +832,8 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_TUNE_PREEMPHASIS:
 	/* Add camera flash light by raymonxiu */
 	case V4L2_CID_CAMERA_FLASH_MODE:	
+		*type = V4L2_CTRL_TYPE_MENU;
+		break;
 	case V4L2_CID_FLASH_LED_MODE:
 	case V4L2_CID_FLASH_STROBE_SOURCE:
 	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:

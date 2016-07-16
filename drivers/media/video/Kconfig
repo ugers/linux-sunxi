@@ -994,8 +994,6 @@ source "drivers/media/video/sn9c102/Kconfig"
 
 source "drivers/media/video/pwc/Kconfig"
 
-source "drivers/media/video/stk1160/Kconfig"
-
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
 	depends on VIDEO_V4L2

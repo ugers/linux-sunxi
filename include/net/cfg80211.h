@@ -2033,8 +2033,6 @@ struct wiphy {
 
 	u32 ap_sme_capa;
 
-	u32 ap_sme_capa;
-
 	enum cfg80211_signal_type signal_type;
 
 	int bss_priv_size;
