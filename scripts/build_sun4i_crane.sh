@@ -9,7 +9,8 @@ set -e
 
 #Setup common variables
 export ARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabi-
+export SUBARCH=arm
+export CROSS_COMPILE=toolchain/bin/arm-none-eabi-
 export AS=${CROSS_COMPILE}as
 export LD=${CROSS_COMPILE}ld
 export CC=${CROSS_COMPILE}gcc
@@ -137,12 +138,6 @@ clean_modules()
 {
 	echo "Cleaning modules"
 	make -C modules/example LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
-
-	(
-	export LANG=en_US.UTF-8
-	unset LANGUAGE
-	make -C modules/mali LICHEE_MOD_DIR=${LICHEE_MOD_DIR} LICHEE_KDIR=${LICHEE_KDIR} clean
-	)
 
 	#build swl-n20 sdio wifi module
 	make -C modules/wifi/nano-c047.12 LICHEE_MOD_DIR=${LICHEE_MOD_DIR} KERNEL_DIR=${LICHEE_KDIR} \
