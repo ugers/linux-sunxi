@@ -475,7 +475,7 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 	}
 	spin_unlock_irqrestore(&ptr->it_lock, flags);
 
-	return result
+	return result;
 }
 
 /**
